@@ -11,7 +11,6 @@ import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Collectors;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
@@ -54,12 +53,13 @@ public class QASdecTree {
         this.spark = SparkSession.builder().appName("CsvTests").master("local[4]").getOrCreate();
         /*
         obs: the original csv had spaces in the header starting from the second column.
+        Some answers has accents, and non letter or digits or _ chars too.
         I coded a pair of python programs (for the convenience of python csv classes)
         to fix it (see javaNetbeans/data csvAdjust.py and csvAdjust2.py)
         */
 
         /*
-         * read csv into Dataset object to use on spark and benefit of distribution.
+         * read csv into Dataset object to use on spark and benefit from distribution.
          */
         dataset = spark.read().format("csv")
                 .option("sep", ",")
@@ -178,26 +178,18 @@ public class QASdecTree {
         calculate gini of dataset
         Our main attribute is answer, that is multiclass
         */
-        //long totalAnswers = spark.sql("select ANSWER from dataset").count();
-        long totalAnswers = dataset.filter("ANSWER").count();
+        long totalAnswers = dataset.count();
         long totalAttributes = attributes.size();
         long visitedAttributes = 0;
         writerResults.writeMsg("choosing best attribute. Total answers: " + totalAnswers);
-        long[] sumArray  = dataset.groupBy("ANSWER").count().filter("count").collectAsList()
+        long[] sumArray  = dataset.groupBy("ANSWER").count().select("count").collectAsList()
                 .stream().mapToLong(row -> row.getLong(0)).toArray();
-        //List<Row> list = dataset.sqlContext().sql("select count(ANSWER) " +
-        //        " from dataset group by ANSWER").collectAsList();
-        //List<Long> sumList;
-        //sumList = list.stream().map(row -> row.getLong(0)).collect(Collectors.toList());
         double sum = 0.0F;
-        //for(long value : sumList.stream().mapToLong(i->i).toArray()) {
         for(long value: sumArray) {
-            //writerResults.writeMsg("value on sumList: " + value);
             if (totalAnswers!=0) {
                 sum += pow((double) value / (double) totalAnswers, 2);
             }
         }
-        //writerResults.writeMsg("Now sum values: " + sum);
         double datasetGini = 1D - sum;
         writerResults.writeMsg("Dataset Gini = " + datasetGini);
         /*
@@ -206,81 +198,66 @@ public class QASdecTree {
         */
         String bestAttribute = null;
         double maxAttributeGini = 0.0D;
-        long[] mapZeroes, mapOnes;
         long totAggZeroes, totAggOnes;
         double sumZeroes, sumOnes;
         double attrGini;
         for (String attribute : attributes) {
             if(attribute.equals("ANSWER")) {
+                /*
+                ANSWER is target attribute, and not binary btw
+                */
                 continue;
             }
-            //writerResults.writeMsg("calculating gini for attribute " + attribute);
             /*
             first for class value = 0
             */
-            long totalZeroes = spark.sql("select " + attribute + 
-                    " from dataset where " + attribute + " = 0").count();
-            //writerResults.writeMsg("total zeros for " + attribute + " is " + totalZeroes);
+            long totalZeroes = dataset.filter("" + attribute + " = 0").count();
             /*
             now aggregate for each answer
             */
-            List<Row> aggZeroes = dataset.sqlContext().sql("select count(ANSWER) " +
-                " from dataset where " + attribute + " = 0 group by ANSWER").collectAsList();
-            List<Long> sumAggZeros = 
-                    aggZeroes.stream().map(row -> row.getLong(0)).collect(Collectors.toList());
-            mapZeroes = sumAggZeros.stream().mapToLong(i->i).toArray(); 
+            int[] aggZeroes = 
+                    dataset.filter("" + attribute + " = 0").groupBy("ANSWER").count().collectAsList()
+                            .stream().mapToInt(row -> row.getInt(0)).toArray();
             totAggZeroes = 0;
             sumZeroes = 0.0D;
-            for(long value : mapZeroes) {
+            for(long value : aggZeroes) {
                 totAggZeroes += value;
             }
-            //writerResults.writeMsg("total aggregated by answers zeros for " + attribute + " is " + totAggZeroes);
-            for(long value : mapZeroes) {
+            for(long value : aggZeroes) {
                 if (totAggZeroes!=0) {
                     sumZeroes += pow((double) value / (double) totAggZeroes, 2);
                 }
             }
-            //writerResults.writeMsg("sumZeroes [result of summing pow((double) value / (double) totAggZeroes, 2)] for " + attribute + " is " + sumZeroes);
             /*
             now for class value = 1
             */
-            long totalOnes = spark.sql("select " + attribute + 
-                    " from dataset where " + attribute + " = 1").count();
-            //writerResults.writeMsg("total ones for " + attribute + " is " + totalOnes);
+            long totalOnes = dataset.filter("" + attribute + " = 1").count();
             /*
             now aggregate for each answer
             */
-            List<Row> aggOnes = dataset.sqlContext().sql("select count(ANSWER) " +
-                " from dataset where " + attribute + " = 1 group by ANSWER").collectAsList();
-            List<Long> sumAggOnes = 
-                    aggOnes.stream().map(row -> row.getLong(0)).collect(Collectors.toList());
-            mapOnes = sumAggOnes.stream().mapToLong(i->i).toArray(); 
+            int[] aggOnes = 
+                    dataset.filter("" + attribute + " = 1").groupBy("ANSWER").count().collectAsList()
+                            .stream().mapToInt(row -> row.getInt(0)).toArray();
             totAggOnes = 0;
             sumOnes = 0.0D;
-            for(long value : mapOnes) {
+            for(long value : aggOnes) {
                 totAggOnes += value;
             }
-            //writerResults.writeMsg("total aggregated by answers ones for " + attribute + " is " + totAggOnes);
-            for(long value : mapOnes) {
-                if (totAggOnes != 0) {
+            for(long value : aggOnes) {
+                if (totAggOnes!=0) {
                     sumOnes += pow((double) value / (double) totAggOnes, 2);
                 }
             }
-            //writerResults.writeMsg("sumOnes [result of summing pow((double) value / (double) totAggOnes, 2)] for " + attribute + " is " + sumOnes);
-            long t01;
-            t01 = totalZeroes+totalOnes;
-            //writerResults.writeMsg("totalZeroes + totalOnes for " + attribute + " is " + t01);
+            long totalZerosAndOnes;
+            totalZerosAndOnes = totalZeroes+totalOnes;
             attrGini = datasetGini;
-            if(t01!=0) {
+            if(totalZerosAndOnes!=0) {
                 double ginVarZeros = (double) totalZeroes/((double) totalZeroes+totalOnes)*sumZeroes;
-                //writerResults.writeMsg("ginVarZeros [totalZeroes/(totalZeroes+totalOnes)*sumZeroes] for " + attribute + " is " + ginVarZeros);
                 double ginVarOnes = (double) totalOnes/((double) totalZeroes+totalOnes)*sumOnes;
-                //writerResults.writeMsg("ginVarOnes [totalOnes/(totalZeroes+totalOnes)*sumOnes] for " + attribute + " is " + ginVarOnes);
                 double ginVar =  ginVarZeros + ginVarOnes;
-                //writerResults.writeMsg("ginVar [ginVarZeros + ginVarOnes] for " + attribute + " is " + ginVar);
                 attrGini -=  ginVar;
             } else {
-                //writerResults.writeMsg("Problem, t01 is zero!!!!!!!");
+                writerResults.writeMsg("   >>> WARNING: totalZerosAndOnes is zero!!!!!!!");
             }
             writerResults.writeMsg("Gini for " + attribute + " = " + attrGini);
             /*
@@ -297,9 +274,6 @@ public class QASdecTree {
             writerResults.writeMsg("nodes on tree: " + treeNodes);
             writerResults.writeMsg("--- timestamp: " + new Timestamp(System.currentTimeMillis()));
         }
-        //writerResults.writeMsg("Exiting");
-        //spark.stop();
-        //System.exit(0);
         return bestAttribute;
     }
 
