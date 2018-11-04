@@ -1,0 +1,3 @@
+Data loaded. Starting tree
+Number ofattributes: 3194
+Number ofattributes: 3193

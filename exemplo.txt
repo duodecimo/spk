@@ -1,0 +1,15 @@
+calculating gini for attribute ATRAV
+total zeros for ATRAV is 11667
+total ones for ATRAV is 52
+Gini for ATRAV = 0.9640406130817629
+Best attribute up to now is PEDIND with gini = 0.9640406130817629
+calculating gini for attribute BLZ
+total zeros for BLZ is 11717
+total ones for BLZ is 2
+Gini for BLZ = 0.9640406130817629
+Best attribute up to now is PEDIND with gini = 0.9640406130817629
+
+
+
+Inicio: 09:50
+

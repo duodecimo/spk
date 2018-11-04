@@ -1,0 +1,65 @@
+Data loaded. Starting tree
+Number ofattributes: 3194
+choosing best attribute. Total answers: 11719
+Dataset Gini = 0.9640406130817629
+calculating gini for attribute MSGID
+Gini for MSGID = 0.9640406130817629
+Best attribute up to now is MSGID with gini = 0.9640406130817629
+calculating gini for attribute ANSWER
+Gini for ANSWER = 0.9640406130817629
+Best attribute up to now is MSGID with gini = 0.9640406130817629
+calculating gini for attribute PEDIND
+Gini for PEDIND = 0.9640406130817629
+Best attribute up to now is MSGID with gini = 0.9640406130817629
+calculating gini for attribute CONFER
+Gini for CONFER = 0.9640406130817629
+Best attribute up to now is MSGID with gini = 0.9640406130817629
+calculating gini for attribute TEMDIREIT
+Gini for TEMDIREIT = 0.9640406130817629
+Best attribute up to now is MSGID with gini = 0.9640406130817629
+calculating gini for attribute PREMIAD
+Gini for PREMIAD = 0.9640406130817629
+Best attribute up to now is MSGID with gini = 0.9640406130817629
+calculating gini for attribute LIGACO
+Gini for LIGACO = 0.9640406130817629
+Best attribute up to now is MSGID with gini = 0.9640406130817629
+calculating gini for attribute PROMOC
+Gini for PROMOC = 0.9640406130817629
+Best attribute up to now is MSGID with gini = 0.9640406130817629
+calculating gini for attribute FIREWALL
+Gini for FIREWALL = 0.9640406130817629
+Best attribute up to now is MSGID with gini = 0.9640406130817629
+calculating gini for attribute GERENC
+Gini for GERENC = 0.9640406130817629
+Best attribute up to now is MSGID with gini = 0.9640406130817629
+calculating gini for attribute GEREND
+Gini for GEREND = 0.9640406130817629
+Best attribute up to now is MSGID with gini = 0.9640406130817629
+calculating gini for attribute DISTANC
+Gini for DISTANC = 0.9640406130817629
+Best attribute up to now is MSGID with gini = 0.9640406130817629
+calculating gini for attribute STOR
+Gini for STOR = 0.9640406130817629
+Best attribute up to now is MSGID with gini = 0.9640406130817629
+calculating gini for attribute CONFIGURATION
+Gini for CONFIGURATION = 0.9640406130817629
+Best attribute up to now is MSGID with gini = 0.9640406130817629
+calculating gini for attribute STON
+Gini for STON = 0.9640406130817629
+Best attribute up to now is MSGID with gini = 0.9640406130817629
+calculating gini for attribute BCK
+Gini for BCK = 0.9640406130817629
+Best attribute up to now is MSGID with gini = 0.9640406130817629
+calculating gini for attribute PALHAC
+Gini for PALHAC = 0.9640406130817629
+Best attribute up to now is MSGID with gini = 0.9640406130817629
+calculating gini for attribute NACION
+Gini for NACION = 0.9640406130817629
+Best attribute up to now is MSGID with gini = 0.9640406130817629
+calculating gini for attribute SEI
+Gini for SEI = 0.9640406130817629
+Best attribute up to now is MSGID with gini = 0.9640406130817629
+calculating gini for attribute OPTE
+Gini for OPTE = 0.9640406130817629
+Best attribute up to now is MSGID with gini = 0.9640406130817629
+calculating gini for attribute SEMSAN
