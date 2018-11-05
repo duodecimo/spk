@@ -20,6 +20,15 @@ import org.apache.log4j.Logger;
 /**
  *
  * @author duo
+ * 
+ * Em termos formais, para um conjunto O de mensagens e suas respectivas respotas padrões,
+ * o poder discriminativo de uma palavra w é dada por:
+ * Delta I(O) = I(O) - (I(O_w) * p_w + I(O_s/w) * p_s/w)
+ * onde
+ * I(O) = Gini de O
+ * I(O_w) = Gini do subconjunto de elementos de O contendo a palavra w
+ * I(O_s/w) = Gini do subconjunto de elementos de O sem a palavra w
+ * 
  */
 public class QASdecTree {
 
@@ -27,6 +36,7 @@ public class QASdecTree {
     private final Dataset<Row> dataset;
     private final WriterResults writerResults;
     private int treeNodes;
+    private boolean debug;
 
     /**
      * This method reads the data and builds the QAS DecisionTree
@@ -48,6 +58,13 @@ public class QASdecTree {
         Logger.getLogger("org").setLevel(Level.ERROR);
         Logger.getLogger("akka").setLevel(Level.ERROR);
 
+        /*
+        no mini, com debug = false, 4 minutos 2 segundos
+        no mini, com debug = true,  4 minutos 6 segundos
+        */
+        debug = false;
+        
+
         treeNodes = 0;
         writerResults = new WriterResults("qtest.txt");
         this.spark = SparkSession.builder().appName("CsvTests").master("local[4]").getOrCreate();
@@ -66,7 +83,11 @@ public class QASdecTree {
                 .option("inferSchema", "true")
                 .option("header", "true")
                 .load("/extra2/mySpark/javaNetbeans/data/trainingCor.csv");
-                // .load("/extra2/mySpark/javaNetbeans/data/miniTrainingCor.csv");
+                //.load("/extra2/mySpark/javaNetbeans/data/miniTrainingCor.csv");
+        /*
+        Com trainingCor, começando em:
+         */
+
         /*
         turn into temporary view to apply sql
         */
@@ -143,8 +164,10 @@ public class QASdecTree {
         System.out.println("Mostrando o left: ");
         leftDataset.show(10);
         System.out.println("Possui " + leftDataset.count() + " registros.");
-        writerResults.writeMsg("leftDataset show: " + 
-                leftDataset.showString(10, 20, true));
+        if (debug) {
+            writerResults.writeMsg("leftDataset show: "
+                    + leftDataset.showString(10, 20, true));
+        }
         System.out.println("\n\n===============================================\n\n");
         if(!checkForEndingOfNodeSplit(attributes, leftDataset)) {
             node.left = new Node();
@@ -161,8 +184,10 @@ public class QASdecTree {
         System.out.println("Mostrando o right: ");
         rightDataset.show(10);
         System.out.println("Possui " + rightDataset.count() + " registros.");
-        writerResults.writeMsg("rightDataset show: " + 
-                rightDataset.showString(10, 20, true));
+        if (debug) {
+            writerResults.writeMsg("rightDataset show: "
+                    + rightDataset.showString(10, 20, true));
+        }
         System.out.println("\n\n===============================================\n\n");
         if(!checkForEndingOfNodeSplit(attributes, rightDataset)) {
             node.right = new Node();
@@ -181,7 +206,9 @@ public class QASdecTree {
         long totalAnswers = dataset.count();
         long totalAttributes = attributes.size();
         long visitedAttributes = 0;
-        writerResults.writeMsg("choosing best attribute. Total answers: " + totalAnswers);
+        if (debug) {
+            writerResults.writeMsg("choosing best attribute. Total answers: " + totalAnswers);
+        }
         long[] sumArray  = dataset.groupBy("ANSWER").count().select("count").collectAsList()
                 .stream().mapToLong(row -> row.getLong(0)).toArray();
         double sum = 0.0F;
@@ -191,13 +218,16 @@ public class QASdecTree {
             }
         }
         double datasetGini = 1D - sum;
-        writerResults.writeMsg("Dataset Gini = " + datasetGini);
+        if (debug) {
+            writerResults.writeMsg("Dataset Gini = " + datasetGini);
+        }
         /*
         now calculate gini for each attribute selecting the greater.
         attributes are binary, so their classes = {0,1}
         */
         String bestAttribute = null;
         double maxAttributeGini = 0.0D;
+        long maxAttributeTotalOnes = 0L;
         long totAggZeroes, totAggOnes;
         double sumZeroes, sumOnes;
         double attrGini;
@@ -235,8 +265,15 @@ public class QASdecTree {
             /*
             now aggregate for each answer
             */
+            
+            /*
+            Doubt: should I use attribute + " >= 1" or attribute + " = 1" on the folowing query?
+            or should I use distinct instead of group by?
+            because it seems some answers are duplicated among the rows ...
+            anyway, for now I'm going with >=1, because if the result can be only 1, it will do no harm.
+            */
             int[] aggOnes = 
-                    dataset.filter("" + attribute + " = 1").groupBy("ANSWER").count().collectAsList()
+                    dataset.filter("" + attribute + " >= 1").groupBy("ANSWER").count().collectAsList()
                             .stream().mapToInt(row -> row.getInt(0)).toArray();
             totAggOnes = 0;
             sumOnes = 0.0D;
@@ -257,22 +294,32 @@ public class QASdecTree {
                 double ginVar =  ginVarZeros + ginVarOnes;
                 attrGini -=  ginVar;
             } else {
-                writerResults.writeMsg("   >>> WARNING: totalZerosAndOnes is zero!!!!!!!");
+                if (debug) {
+                    writerResults.writeMsg("   >>> WARNING: totalZerosAndOnes is zero!!!!!!!");
+                }
             }
-            writerResults.writeMsg("Gini for " + attribute + " = " + attrGini);
+            // if (debug) {
+                writerResults.writeMsg("Gini for " + attribute + " = " + attrGini + 
+                        " total ones = " + totalOnes);
+            //}
             /*
             keep the greater attribute gini
             */
             if(attrGini > maxAttributeGini) {
                 bestAttribute = attribute;
                 maxAttributeGini = attrGini;
+                maxAttributeTotalOnes = totalOnes;
             }
-            writerResults.writeMsg("Best attribute up to now is " + bestAttribute + 
-                    " with gini = " + maxAttributeGini);
+            //if (debug) {
+                writerResults.writeMsg("Best attribute up to now is " + bestAttribute
+                        + " with gini = " + maxAttributeGini + " with total ones " + maxAttributeTotalOnes);
+            //}
             visitedAttributes++;
-            writerResults.writeMsg("attributes: " + visitedAttributes + " of " + totalAttributes);
-            writerResults.writeMsg("nodes on tree: " + treeNodes);
-            writerResults.writeMsg("--- timestamp: " + new Timestamp(System.currentTimeMillis()));
+            //if (debug) {
+                writerResults.writeMsg("attributes: " + visitedAttributes + " of " + totalAttributes);
+                writerResults.writeMsg("nodes on tree: " + treeNodes);
+                writerResults.writeMsg("--- timestamp: " + new Timestamp(System.currentTimeMillis()));
+            //}
         }
         return bestAttribute;
     }

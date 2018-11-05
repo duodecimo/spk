@@ -1,0 +1,11 @@
+Em termos formais, para um conjunto O de mensagens e suas respectivas respotas padrões,
+o poder discriminativo de uma palavra w é dada por:
+
+Delta I(O) = I(O) - (I(O_w) * p_w + I(O_s/w) * p_s/w)
+
+onde
+I(O) = Gini de O
+I(O_w) = Gini do subconjunto de elementos de O contendo a palavra w
+I(O_s/w) = Gini do subconjunto de elementos de O sem a palavra w
+
+
