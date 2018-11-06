@@ -23,11 +23,21 @@ import org.apache.log4j.Logger;
  * 
  * Em termos formais, para um conjunto O de mensagens e suas respectivas respotas padrões,
  * o poder discriminativo de uma palavra w é dada por:
+ * 
  * Delta I(O) = I(O) - (I(O_w) * p_w + I(O_s/w) * p_s/w)
+ * 
  * onde
+ * 
  * I(O) = Gini de O
  * I(O_w) = Gini do subconjunto de elementos de O contendo a palavra w
  * I(O_s/w) = Gini do subconjunto de elementos de O sem a palavra w
+ * 
+ * Para um onjunto O de observações e uma classe J de n objetos, Gini é calculado por:
+ * 
+ * I(O) = 1 - S
+ * 
+ * S = Sum de i=1 ate n de P(j_i|O) elevado a 2, para j_i pertence a J e
+ * P(j_i|O) é a probabilidade da ocorrência de objetos j_i em O.
  * 
  */
 public class QASdecTree {
