@@ -93,8 +93,8 @@ public class QASdecTree {
                 .option("sep", ",")
                 .option("inferSchema", "true")
                 .option("header", "true")
-                //.load("/extra2/mySpark/javaNetbeans/data/trainingCor.csv");
-                .load("/extra2/mySpark/javaNetbeans/data/miniTrainingCor.csv");
+                .load("/extra2/mySpark/javaNetbeans/data/trainingCor.csv");
+                //.load("/extra2/mySpark/javaNetbeans/data/miniTrainingCor.csv");
         /*
         Com trainingCor, começando em:
          */
@@ -252,8 +252,6 @@ public class QASdecTree {
      *      */
     protected String chooseNodeBestAttribute(List<String> attributes, Dataset dataset) throws IOException {
         dataset.createOrReplaceTempView("dataset");
-        long totalAttributes = attributes.size();
-        long visitedAttributes = 0;
         /*
         Answers are c1, c2, ..., c3.
         Obs.: If the node has only one answer, thats it!
@@ -291,139 +289,86 @@ public class QASdecTree {
         Dataset<Row> reducedToAnswer = dataset.filter("Answer = " + answer);
         System.out.println("Reduced to Answer " + answer +
                 " size: " + reducedToAnswer.count());
-
         /*
-        
-        C = total messages with Answer cj and word wi
-        A = total messages with Answer not cj but with word wi
-        T = C+A
-        CP = C/T
-        AP = A/T
-        wiGini = 1 - ((CP*CP) + (AP*AP))
-        
-        (Here I think it's better do not use the gini of absence of wi).
-        
-        calculate discrimination power of each wi on cj
-        dpi = datasetGini - (wiGini * (C/A))
-        done, return max dpi
+        I wonder if I need:
+        reducedToAnswer.createOrReplaceTempView("reducedToAnswer");
         */
+        
+        /*
+        iterate over attributes
+        */
+        double attrGini;
+        double maxAttrGini = 0.0D;
+        String maxAttribute = "";
+        int countAttributes = 0;
+        for(String attribute : attributes) {
+            countAttributes++;
+            System.out.println("Checking attribute " + countAttributes + " of " + 
+                attributes.size() + ".");
+
+           /*
+            C = total messages with Answer cj and word wi
+            A = total messages with Answer not cj but with word wi
+            T = total messages with word wi
+            T = C+A
+            CP = C/T
+            AP = A/T
+            wiGini = 1 - ((CP*CP) + (AP*AP))
+
+            (Here I think it's better do not use the gini of absence of wi).
+
+            calculate discrimination power of each wi on cj
+            dpi = datasetGini - (wiGini * (C/A))
+            done, return max dpi
+            */
+
+            /*
+            C = total messages with Answer cj and word wi.
+            */
+            double tot_c = (double)reducedToAnswer.filter("" + attribute + " = 1").count();
+            /*
+            well, if the answer (attribute) does not yields the answer, 
+            it cannot be considered of any influence on it.
+            */
+            if(tot_c == 0.0D) {
+                continue;
+            }
+            /*
+            A = total messages with Answer not cj but with word wi.
+            */
+            double total = (double)dataset.filter("" + attribute + " =1").count();
+            double tot_a = total - tot_c;
+            /*
+            CP = C/T
+            */
+            double ptot_c = tot_c/total;
+            /*
+            AP = A/T
+            */
+            double ptot_a = tot_a/total;
+            /*
+            wiGini = 1 - ((CP*CP) + (AP*AP))
+            */
+            attrGini = 1 - (pow(ptot_c,2) + pow(ptot_a, 2));
+            if(maxAttribute.isEmpty()) {
+                maxAttrGini = attrGini;
+                maxAttribute = attribute;
+            }
+            if(attrGini > maxAttrGini) {
+                maxAttrGini = attrGini;
+                maxAttribute = attribute;
+            }
+            System.out.println("Gini of " + attribute + " = " + attrGini);
+            System.out.println("Best Gini up to now is for " + maxAttribute + " = " + maxAttrGini);
+        }
 
         spark.stop();
         System.exit(0);
 
-
-        long[] sumArray  = dataset.groupBy("ANSWER").count().select("count").collectAsList()
-                .stream().mapToLong(row -> row.getLong(0)).toArray();
-        double sum = 0.0F;
-        for(long value: sumArray) {
-            if (totalAnswers!=0) {
-                sum += pow((double) value / (double) totalAnswers, 2);
-            }
-        }
-        if (debug) {
-            writerResults.writeMsg("Dataset Gini = " + datasetGini);
-        }
         /*
-        now calculate gini for each attribute selecting the greater.
-        attributes are binary, so their classes = {0,1}
+        done, return attribute of max discrimination power for the answer
         */
-        String bestAttribute = null;
-        double maxAttributeGini = 0.0D;
-        long maxAttributeTotalOnes = 0L;
-        long totAggZeroes, totAggOnes;
-        double sumZeroes, sumOnes;
-        double attrGini;
-        for (String attribute : attributes) {
-            if(attribute.equals("ANSWER")) {
-                /*
-                ANSWER is target attribute, and not binary btw
-                */
-                continue;
-            }
-            /*
-            first for class value = 0
-            */
-            long totalZeroes = dataset.filter("" + attribute + " = 0").count();
-            /*
-            now aggregate for each answer
-            */
-            int[] aggZeroes = 
-                    dataset.filter("" + attribute + " = 0").groupBy("ANSWER").count().collectAsList()
-                            .stream().mapToInt(row -> row.getInt(0)).toArray();
-            totAggZeroes = 0;
-            sumZeroes = 0.0D;
-            for(long value : aggZeroes) {
-                totAggZeroes += value;
-            }
-            for(long value : aggZeroes) {
-                if (totAggZeroes!=0) {
-                    sumZeroes += pow((double) value / (double) totAggZeroes, 2);
-                }
-            }
-            /*
-            now for class value = 1
-            */
-            long totalOnes = dataset.filter("" + attribute + " = 1").count();
-            /*
-            now aggregate for each answer
-            */
-            
-            /*
-            Doubt: should I use attribute + " >= 1" or attribute + " = 1" on the folowing query?
-            or should I use distinct instead of group by?
-            because it seems some answers are duplicated among the rows ...
-            anyway, for now I'm going with >=1, because if the result can be only 1, it will do no harm.
-            */
-            int[] aggOnes = 
-                    dataset.filter("" + attribute + " >= 1").groupBy("ANSWER").count().collectAsList()
-                            .stream().mapToInt(row -> row.getInt(0)).toArray();
-            totAggOnes = 0;
-            sumOnes = 0.0D;
-            for(long value : aggOnes) {
-                totAggOnes += value;
-            }
-            for(long value : aggOnes) {
-                if (totAggOnes!=0) {
-                    sumOnes += pow((double) value / (double) totAggOnes, 2);
-                }
-            }
-            long totalZerosAndOnes;
-            totalZerosAndOnes = totalZeroes+totalOnes;
-            attrGini = datasetGini;
-            if(totalZerosAndOnes!=0) {
-                double ginVarZeros = (double) totalZeroes/((double) totalZeroes+totalOnes)*sumZeroes;
-                double ginVarOnes = (double) totalOnes/((double) totalZeroes+totalOnes)*sumOnes;
-                double ginVar =  ginVarZeros + ginVarOnes;
-                attrGini -=  ginVar;
-            } else {
-                if (debug) {
-                    writerResults.writeMsg("   >>> WARNING: totalZerosAndOnes is zero!!!!!!!");
-                }
-            }
-            // if (debug) {
-                writerResults.writeMsg("Gini for " + attribute + " = " + attrGini + 
-                        " total ones = " + totalOnes);
-            //}
-            /*
-            keep the greater attribute gini
-            */
-            if(attrGini > maxAttributeGini) {
-                bestAttribute = attribute;
-                maxAttributeGini = attrGini;
-                maxAttributeTotalOnes = totalOnes;
-            }
-            //if (debug) {
-                writerResults.writeMsg("Best attribute up to now is " + bestAttribute
-                        + " with gini = " + maxAttributeGini + " with total ones " + maxAttributeTotalOnes);
-            //}
-            visitedAttributes++;
-            //if (debug) {
-                writerResults.writeMsg("attributes: " + visitedAttributes + " of " + totalAttributes);
-                writerResults.writeMsg("nodes on tree: " + treeNodes);
-                writerResults.writeMsg("--- timestamp: " + new Timestamp(System.currentTimeMillis()));
-            //}
-        }
-        return bestAttribute;
+        return maxAttribute;
     }
 
     protected boolean checkForEndingOfNodeSplit(List<String> attributes, Dataset dataset) throws IOException {
