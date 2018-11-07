@@ -21,6 +21,8 @@ import org.apache.log4j.Logger;
  *
  * @author duo
  * 
+ * Sobre a escolha da melhor palavra:
+ * 
  * Em termos formais, para um conjunto O de mensagens e suas respectivas respotas padrões,
  * o poder discriminativo de uma palavra w é dada por:
  * 
@@ -46,7 +48,7 @@ public class QASdecTree {
     private final Dataset<Row> dataset;
     private final WriterResults writerResults;
     private int treeNodes;
-    private boolean debug;
+    private final boolean debug = false;
 
     /**
      * This method reads the data and builds the QAS DecisionTree
@@ -72,7 +74,6 @@ public class QASdecTree {
         no mini, com debug = false, 4 minutos 2 segundos
         no mini, com debug = true,  4 minutos 6 segundos
         */
-        debug = false;
         
 
         treeNodes = 0;
@@ -92,8 +93,8 @@ public class QASdecTree {
                 .option("sep", ",")
                 .option("inferSchema", "true")
                 .option("header", "true")
-                .load("/extra2/mySpark/javaNetbeans/data/trainingCor.csv");
-                //.load("/extra2/mySpark/javaNetbeans/data/miniTrainingCor.csv");
+                //.load("/extra2/mySpark/javaNetbeans/data/trainingCor.csv");
+                .load("/extra2/mySpark/javaNetbeans/data/miniTrainingCor.csv");
         /*
         Com trainingCor, começando em:
          */
@@ -147,7 +148,7 @@ public class QASdecTree {
     private void buildTree(Node node, List<String> attributes, Dataset dataset, String alias) throws IOException {
         dataset.createOrReplaceTempView("dataset");
         treeNodes++;
-        node.setAttribute(chooseBestAttribute(attributes, dataset));
+        node.setAttribute(chooseNodeBestAttribute(attributes, dataset));
         writerResults.writeMsg("Node " + alias + ": " + node.getAttribute());
         writerResults.writeMsg("--- timestamp: " + new Timestamp(System.currentTimeMillis()));
         /*
@@ -207,18 +208,110 @@ public class QASdecTree {
         }
     }
 
-    protected String chooseBestAttribute(List<String> attributes, Dataset dataset) throws IOException {
+    /**
+     * 
+     * Answers are c1, c2, ..., c3
+     * Let's derive tree on the first answer, then,
+     * next division for 2nd, and so on.
+     * 
+     * calculate gini of dataset
+     * 
+     * T = total messages
+     * C = total messages with Answer ci
+     * CP = C/T
+     * A = T - C (total other than C messages)
+     * AP = A/T
+     * datasetGini = 1 - ((CP*CP + AP*AP))
+     * 
+     * calculate impact of each word (w1, w2, ..., wn) on the
+     * dataset with answer cj
+     * 
+     * C = total messages with Answer cj and word wi
+     * A = total messages with Answer not cj but with word wi
+     * T = C+A
+     * CP = C/T
+     * AP = A/T
+     * wiGini = 1 - ((CP*CP) + (AP*AP))
+     * 
+     * (Here I think it's better do not use the gini of absence of wi).
+     * 
+     * calculate discrimination power of each wi on cj
+     * 
+     * dpi = datasetGini - (wiGini * (C/A))
+     * 
+     * done, return max dpi
+     *  - use wi (with max dpi) as tree node
+     *  - remove wi from list of words
+     *  - send data with answer cj to the left
+     *  - send data with answer not cj to the right
+     * 
+     * @param attributes
+     * @param dataset
+     * @return
+     * @throws IOException 
+     *      */
+    protected String chooseNodeBestAttribute(List<String> attributes, Dataset dataset) throws IOException {
         dataset.createOrReplaceTempView("dataset");
-        /*
-        calculate gini of dataset
-        Our main attribute is answer, that is multiclass
-        */
-        long totalAnswers = dataset.count();
         long totalAttributes = attributes.size();
         long visitedAttributes = 0;
+        /*
+        Answers are c1, c2, ..., c3.
+        Obs.: If the node has only one answer, thats it!
+        
+        Let's derive tree spliting node on the first answer, then, next division for 2nd, and so on.
+        pick first answer on node dataset.
+        */
+        int answer = dataset.groupBy("ANSWER").count().select("ANSWER").first().getInt(0);
         if (debug) {
-            writerResults.writeMsg("choosing best attribute. Total answers: " + totalAnswers);
+            writerResults.writeMsg("Choosing best attribute. Picked answer: " + answer);
         }
+        System.out.println("Choosing best attribute. Picked answer: " + answer);
+        /*
+        calculate gini of dataset:
+        T = total messages
+        C = total messages with Answer ci
+        CP = C/T
+        A = T - C (total other than C messages)
+        AP = A/T
+        datasetGini = 1 - ((CP*CP + AP*AP))
+        */
+        double totalAnswers = (double) dataset.count();
+        double msgWithAnswer = (double) dataset.groupBy("ANSWER").count().select("count").first().getLong(0);
+        double pMsgWithAnswer = msgWithAnswer / totalAnswers;
+        double pMsgWithoutAnswer = (totalAnswers - msgWithAnswer) / totalAnswers;
+        double datasetGini = 1.0D - (pow(pMsgWithAnswer, 2) + pow(pMsgWithoutAnswer, 2));
+        System.out.println("Total answers: " + totalAnswers +
+                " messages with answer " + answer + ": " + msgWithAnswer);
+        System.out.println("Datset Gini = " + datasetGini);
+        /*
+        calculate impact of each word (w1, w2, ..., wn) on the
+        dataset with answer cj.
+        so, dataset can be reduced to lines with answer cj.
+        */
+        Dataset<Row> reducedToAnswer = dataset.filter("Answer = " + answer);
+        System.out.println("Reduced to Answer " + answer +
+                " size: " + reducedToAnswer.count());
+
+        /*
+        
+        C = total messages with Answer cj and word wi
+        A = total messages with Answer not cj but with word wi
+        T = C+A
+        CP = C/T
+        AP = A/T
+        wiGini = 1 - ((CP*CP) + (AP*AP))
+        
+        (Here I think it's better do not use the gini of absence of wi).
+        
+        calculate discrimination power of each wi on cj
+        dpi = datasetGini - (wiGini * (C/A))
+        done, return max dpi
+        */
+
+        spark.stop();
+        System.exit(0);
+
+
         long[] sumArray  = dataset.groupBy("ANSWER").count().select("count").collectAsList()
                 .stream().mapToLong(row -> row.getLong(0)).toArray();
         double sum = 0.0F;
@@ -227,7 +320,6 @@ public class QASdecTree {
                 sum += pow((double) value / (double) totalAnswers, 2);
             }
         }
-        double datasetGini = 1D - sum;
         if (debug) {
             writerResults.writeMsg("Dataset Gini = " + datasetGini);
         }
