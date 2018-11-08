@@ -16,6 +16,7 @@ import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
+import org.apache.spark.sql.functions;
 
 /**
  *
@@ -256,10 +257,19 @@ public class QASdecTree {
         Answers are c1, c2, ..., c3.
         Obs.: If the node has only one answer, thats it!
         
-        Let's derive tree spliting node on the first answer, then, next division for 2nd, and so on.
+        Let's derive tree spliting node on a picked answer, then, next division for 2nd, and so on.
         pick first answer on node dataset.
+        
+        Let's pick up first the answer with max lines, to maximaze the splitting:
+        
+        System.out.println("trying to get the answer with max lines:");
+        dataset.groupBy("ANSWER").count().orderBy(functions.column("count").desc()).show(20);
+
+        it worked!
         */
-        int answer = dataset.groupBy("ANSWER").count().select("ANSWER").first().getInt(0);
+        Dataset<Row> consAnswer = dataset.groupBy("ANSWER").count().orderBy(functions.column("count").
+                desc());
+        int answer = consAnswer.first().getInt(0);
         if (debug) {
             writerResults.writeMsg("Choosing best attribute. Picked answer: " + answer);
         }
@@ -273,8 +283,8 @@ public class QASdecTree {
         AP = A/T
         datasetGini = 1 - ((CP*CP + AP*AP))
         */
-        double totalAnswers = (double) dataset.count();
-        double msgWithAnswer = (double) dataset.groupBy("ANSWER").count().select("count").first().getLong(0);
+        double totalAnswers = (double) consAnswer.count();
+        double msgWithAnswer = (double) consAnswer.first().getLong(1);
         double pMsgWithAnswer = msgWithAnswer / totalAnswers;
         double pMsgWithoutAnswer = (totalAnswers - msgWithAnswer) / totalAnswers;
         double datasetGini = 1.0D - (pow(pMsgWithAnswer, 2) + pow(pMsgWithoutAnswer, 2));
@@ -286,12 +296,37 @@ public class QASdecTree {
         dataset with answer cj.
         so, dataset can be reduced to lines with answer cj.
         */
-        Dataset<Row> reducedToAnswer = dataset.filter("Answer = " + answer);
+        Dataset<Row> filteredToAnswer = dataset.filter("Answer = " + answer);
+        String[] colsFta = filteredToAnswer.columns();
+        
+        Dataset<Row> sFilteredToAnswer = filteredToAnswer.groupBy("ANSWER").sum(colsFta);
+        // sFilteredToAnswer.show(20);
+        String[] sColsFta = sFilteredToAnswer.columns();
+        
+        long vv1 = sFilteredToAnswer.select(sColsFta[2]).first().getLong(0);
+        long vv2 = sFilteredToAnswer.select(sColsFta[18]).first().getLong(0);
+        long vv3 = sFilteredToAnswer.select(sColsFta[19]).first().getLong(0);
+        /*
+        Na verdade quero usar isso para descartar as colunas com valor zero,
+        pois elas não devem ter influência ma resposta ...
+        */
+        System.out.println("Valor de " + colsFta[1] + " (" + sColsFta[2]  + ") " + " = " + vv1);
+        System.out.println("Valor de " + colsFta[17] + " (" + sColsFta[18]  + ") " + " = " + vv2);
+        System.out.println("Valor de " + colsFta[18] + " (" + sColsFta[19]  + ") " + " = " + vv3);
+        for(int i = 2; i<sColsFta.length; i++) {
+            if(sFilteredToAnswer.select(sColsFta[i]).first().getLong(0) == 0) {
+                attributes.remove(colsFta[i-1]);
+                System.out.println("Atributo " + colsFta[i-1] + " removido por ser 0");
+            }
+        }
+        spark.stop();
+        System.exit(0);
+        
         System.out.println("Reduced to Answer " + answer +
-                " size: " + reducedToAnswer.count());
+                " size: " + filteredToAnswer.count());
         /*
         I wonder if I need:
-        reducedToAnswer.createOrReplaceTempView("reducedToAnswer");
+        filteredToAnswer.createOrReplaceTempView("filteredToAnswer");
         */
         
         /*
@@ -325,7 +360,7 @@ public class QASdecTree {
             /*
             C = total messages with Answer cj and word wi.
             */
-            double tot_c = (double)reducedToAnswer.filter("" + attribute + " = 1").count();
+            double tot_c = (double)filteredToAnswer.filter("" + attribute + " = 1").count();
             /*
             well, if the answer (attribute) does not yields the answer, 
             it cannot be considered of any influence on it.
@@ -362,8 +397,6 @@ public class QASdecTree {
             System.out.println("Best Gini up to now is for " + maxAttribute + " = " + maxAttrGini);
         }
 
-        spark.stop();
-        System.exit(0);
 
         /*
         done, return attribute of max discrimination power for the answer
