@@ -335,17 +335,18 @@ public class QASdecTree {
         // sFilteredToAnswer.show(20);
         String[] sColsFta = sFilteredToAnswer.columns();
         JavaRDD sFJRDD = sFilteredToAnswer.javaRDD();
-        //List res = sFJRDD.collect();
-        JavaRDD psFJRDD = jsc.parallelize(sFJRDD.collect());
+        List res = sFJRDD.collect();
+        /*        //JavaRDD psFJRDD = jsc.parallelize(sFJRDD.collect());
         JavaPairRDD<Integer, Integer> pairs;
-        pairs = psFJRDD.mapToPair((String s) -> new Tuple2(1, new Integer(s)));
+        pairs = sFJRDD.mapToPair((Object s) -> new Tuple2(1, new Integer(s.toString())));
         Object []apairs = pairs.collectAsMap().keySet().toArray();
         System.out.println("Some keys ...");
         for(int i = 0; i<20; i++) {
-            System.out.println("key " + i + "= " + (Integer) apairs[i]);
+        System.out.println("key " + i + "= " + (Integer) apairs[i]);
         }
-        List res = psFJRDD.filter(v -> new Integer(v.toString())!=0).collect();
-        for(int i=0; i<res.size() && i<20; i++) {
+        //List res = sFJRDD.filter(v -> new Integer(v.toString()) != 0).collect();
+        */
+        for(int i=0; i<res.size() && i<5; i++) {
             System.out.println("JavaRDD element " + i + " = " + res.get(i).toString());
         }
         spark.stop();
