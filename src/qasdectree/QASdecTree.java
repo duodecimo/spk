@@ -1,8 +1,33 @@
 /*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
+
+Pode ser a solução: dataset transpose
+
+Input:
++---------------+-------------+------+-------+
+|       SensorId|   SensorName| Value|   Unit|
++---------------+-------------+------+-------+
+|              1|     Humidity|    57|      p|
+|              2|  Temperature|    25|      c|
+|              1|     Humidity|    62|      p|
+|              2|  Temperature|    27|      c|
+|              1|     Humidity|    60|      p|
++---------------+-------------+------+-------+
+
+df.groupBy("Sensor_Id","Unit")
+  .pivot("SensorName").min("Value");
+
+Output:
++---------------+-------------+---------+------------+
+|       SensorId|         Unit| Humidity| Temperature|
++---------------+-------------+---------+------------+
+|              1|            p|       57|        null|
+|              2|            c|     null|          25|
+|              1|            p|       62|        null|
+|              2|            c|     null|          27|
+|              1|            p|       60|        null|
++---------------+-------------+------+---------------+ 
+
+*/
 package qasdectree;
 
 import java.io.IOException;
@@ -16,6 +41,7 @@ import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
+import org.apache.spark.sql.RelationalGroupedDataset;
 import org.apache.spark.sql.functions;
 
 /**
@@ -302,7 +328,10 @@ public class QASdecTree {
         Dataset<Row> sFilteredToAnswer = filteredToAnswer.groupBy("ANSWER").sum(colsFta);
         // sFilteredToAnswer.show(20);
         String[] sColsFta = sFilteredToAnswer.columns();
-        
+        RelationalGroupedDataset sFTT = sFilteredToAnswer.groupBy("Answer").pivot("Answer");
+        sFTT.count().show(20);
+        spark.stop();
+        System.exit(0);
         long vv1 = sFilteredToAnswer.select(sColsFta[2]).first().getLong(0);
         long vv2 = sFilteredToAnswer.select(sColsFta[18]).first().getLong(0);
         long vv3 = sFilteredToAnswer.select(sColsFta[19]).first().getLong(0);
@@ -319,8 +348,6 @@ public class QASdecTree {
                 System.out.println("Atributo " + colsFta[i-1] + " removido por ser 0");
             }
         }
-        spark.stop();
-        System.exit(0);
         
         System.out.println("Reduced to Answer " + answer +
                 " size: " + filteredToAnswer.count());
