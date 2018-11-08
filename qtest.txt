@@ -1,0 +1,4 @@
+--- timestamp: 2018-11-08 18:49:52.811
+Counting answers on dataset: 546
+Data loaded. Starting tree
+Number of attributes: 3193

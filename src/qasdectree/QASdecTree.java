@@ -41,8 +41,12 @@ import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
+import org.apache.spark.api.java.JavaPairRDD;
+import org.apache.spark.api.java.JavaRDD;
+import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.RelationalGroupedDataset;
 import org.apache.spark.sql.functions;
+import scala.Tuple2;
 
 /**
  *
@@ -72,6 +76,7 @@ import org.apache.spark.sql.functions;
 public class QASdecTree {
 
     private final SparkSession spark;
+    private final JavaSparkContext jsc;
     private final Dataset<Row> dataset;
     private final WriterResults writerResults;
     private int treeNodes;
@@ -106,6 +111,7 @@ public class QASdecTree {
         treeNodes = 0;
         writerResults = new WriterResults("qtest.txt");
         this.spark = SparkSession.builder().appName("CsvTests").master("local[4]").getOrCreate();
+        this.jsc = new JavaSparkContext(spark.sparkContext());
         /*
         obs: the original csv had spaces in the header starting from the second column.
         Some answers has accents, and non letter or digits or _ chars too.
@@ -328,10 +334,24 @@ public class QASdecTree {
         Dataset<Row> sFilteredToAnswer = filteredToAnswer.groupBy("ANSWER").sum(colsFta);
         // sFilteredToAnswer.show(20);
         String[] sColsFta = sFilteredToAnswer.columns();
-        RelationalGroupedDataset sFTT = sFilteredToAnswer.groupBy("Answer").pivot("Answer");
-        sFTT.count().show(20);
+        JavaRDD sFJRDD = sFilteredToAnswer.javaRDD();
+        //List res = sFJRDD.collect();
+        JavaRDD psFJRDD = jsc.parallelize(sFJRDD.collect());
+        JavaPairRDD<Integer, Integer> pairs;
+        pairs = psFJRDD.mapToPair((String s) -> new Tuple2(1, new Integer(s)));
+        Object []apairs = pairs.collectAsMap().keySet().toArray();
+        System.out.println("Some keys ...");
+        for(int i = 0; i<20; i++) {
+            System.out.println("key " + i + "= " + (Integer) apairs[i]);
+        }
+        List res = psFJRDD.filter(v -> new Integer(v.toString())!=0).collect();
+        for(int i=0; i<res.size() && i<20; i++) {
+            System.out.println("JavaRDD element " + i + " = " + res.get(i).toString());
+        }
         spark.stop();
         System.exit(0);
+        RelationalGroupedDataset sFTT = sFilteredToAnswer.groupBy("Answer").pivot("Answer");
+        sFTT.count().show(20);
         long vv1 = sFilteredToAnswer.select(sColsFta[2]).first().getLong(0);
         long vv2 = sFilteredToAnswer.select(sColsFta[18]).first().getLong(0);
         long vv3 = sFilteredToAnswer.select(sColsFta[19]).first().getLong(0);
