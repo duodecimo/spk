@@ -6,17 +6,14 @@ package qasdectree;
 
 import java.util.Arrays;
 import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
-import org.apache.spark.api.java.JavaPairRDD;
-import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.*;
+import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.Encoders;
+import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
-import scala.Tuple2;
 
 /**
  *
@@ -48,6 +45,49 @@ public class SandBox {
          */
         this.spark = SparkSession.builder().appName("CsvSandbox").master("local[4]").getOrCreate();
         JavaSparkContext jsc = new JavaSparkContext(spark.sparkContext());
+
+
+        Dataset<Row> aw = spark.read().format("csv")
+                .option("sep", ",")
+                .option("inferSchema", "true")
+                .option("header", "true")
+                //.load("/extra2/mySpark/javaNetbeans/data/aw.csv");
+                .load("/extra2/mySpark/javaNetbeans/data/miniaw.csv")
+                ;
+        int aa=10;
+        // opera em uma coluna, aceita valores externos
+        // posso usar em wa com a coluna da resposta escolhida, calculando o gini de todas
+        // as palavras, para verificar qual o maior ...
+        Dataset<Integer> damn = aw.select("" + 0).flatMap((FlatMapFunction<Row, Integer>) value -> {
+            return Arrays.asList((value.getInt(0)<400 ? 0: value.getInt(0) * aa)).iterator();
+                }, Encoders.INT());
+        damn.show(20, true);
+        Iterator<Integer> it = damn.collectAsList().iterator();
+        int max = -1;
+        int val;
+        while(it.hasNext()) {
+            val = it.next();
+            if(val>max) {
+                max = val;
+            }
+        }
+        System.out.println("Maior valor: " + max);
+        spark.stop();
+        System.exit(0);
+
+        // converte uma única coluna para 0
+        //Dataset<Integer> iaw = 
+        //        aw.map((MapFunction<Row, Integer>) row -> row.<Integer>getAs("0"), 
+        //                Encoders.INT());
+        
+        //iaw.show(20, true);
+
+        //Dataset<Integer> nres = iaw.flatMap((FlatMapFunction<Integer, Integer>) value -> {
+        //    return Arrays.asList(value * aa).iterator();
+        //        }, Encoders.INT());
+        //nres.show(20, true);
+
+/*
         List<Integer> data = Arrays.asList(1, 2, 3, 4, 5);
         JavaRDD<Integer> distData = jsc.parallelize(data);
         System.out.println("Soma: " + distData.reduce((a, b) -> a + b));
@@ -77,6 +117,8 @@ public class SandBox {
             //}
         }
         System.out.println("Counting drummond words: " + sum);
+*/
+
     }
 
     /**

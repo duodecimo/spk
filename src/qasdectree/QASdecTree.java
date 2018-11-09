@@ -1,31 +1,5 @@
 /*
 
-Pode ser a solução: dataset transpose
-
-Input:
-+---------------+-------------+------+-------+
-|       SensorId|   SensorName| Value|   Unit|
-+---------------+-------------+------+-------+
-|              1|     Humidity|    57|      p|
-|              2|  Temperature|    25|      c|
-|              1|     Humidity|    62|      p|
-|              2|  Temperature|    27|      c|
-|              1|     Humidity|    60|      p|
-+---------------+-------------+------+-------+
-
-df.groupBy("Sensor_Id","Unit")
-  .pivot("SensorName").min("Value");
-
-Output:
-+---------------+-------------+---------+------------+
-|       SensorId|         Unit| Humidity| Temperature|
-+---------------+-------------+---------+------------+
-|              1|            p|       57|        null|
-|              2|            c|     null|          25|
-|              1|            p|       62|        null|
-|              2|            c|     null|          27|
-|              1|            p|       60|        null|
-+---------------+-------------+------+---------------+ 
 
 */
 package qasdectree;
@@ -35,18 +9,18 @@ import static java.lang.Math.pow;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
-import org.apache.spark.api.java.JavaPairRDD;
-import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.sql.RelationalGroupedDataset;
+import org.apache.spark.api.java.function.FlatMapFunction;
+import org.apache.spark.api.java.function.MapFunction;
+import org.apache.spark.sql.Encoders;
 import org.apache.spark.sql.functions;
-import scala.Tuple2;
 
 /**
  *
@@ -76,8 +50,9 @@ import scala.Tuple2;
 public class QASdecTree {
 
     private final SparkSession spark;
-    private final JavaSparkContext jsc;
-    private final Dataset<Row> dataset;
+    //private final JavaSparkContext jsc;
+    private final Dataset<Row> awDataset;
+    private final Dataset<Row> waDataset;
     private final WriterResults writerResults;
     private int treeNodes;
     private final boolean debug = false;
@@ -111,7 +86,7 @@ public class QASdecTree {
         treeNodes = 0;
         writerResults = new WriterResults("qtest.txt");
         this.spark = SparkSession.builder().appName("CsvTests").master("local[4]").getOrCreate();
-        this.jsc = new JavaSparkContext(spark.sparkContext());
+        //this.jsc = new JavaSparkContext(spark.sparkContext());
         /*
         obs: the original csv had spaces in the header starting from the second column.
         Some answers has accents, and non letter or digits or _ chars too.
@@ -120,14 +95,20 @@ public class QASdecTree {
         */
 
         /*
-         * read csv into Dataset object to use on spark and benefit from distribution.
+         * read csvs into Dataset object to use on spark and benefit from distribution.
          */
-        dataset = spark.read().format("csv")
+        awDataset = spark.read().format("csv")
                 .option("sep", ",")
                 .option("inferSchema", "true")
                 .option("header", "true")
-                .load("/extra2/mySpark/javaNetbeans/data/trainingCor.csv");
-                //.load("/extra2/mySpark/javaNetbeans/data/miniTrainingCor.csv");
+                //.load("/extra2/mySpark/javaNetbeans/data/aw.csv");
+                .load("/extra2/mySpark/javaNetbeans/data/miniaw.csv");
+        waDataset = spark.read().format("csv")
+                .option("sep", ",")
+                .option("inferSchema", "true")
+                .option("header", "true")
+                //.load("/extra2/mySpark/javaNetbeans/data/wa.csv");
+                .load("/extra2/mySpark/javaNetbeans/data/miniwa.csv");
         /*
         Com trainingCor, começando em:
          */
@@ -135,17 +116,18 @@ public class QASdecTree {
         /*
         turn into temporary view to apply sql
         */
-        //dataset.createOrReplaceGlobalTempView("dataset");
-        dataset.createOrReplaceTempView("dataset");
-        long countingAnsw = dataset.groupBy("ANSWER").count().count();
-        //long countingAnsw = spark.sql("select count() from dataset group by ANSWER").count();
+        //awDataset.createOrReplaceGlobalTempView("awDataset");
+        awDataset.createOrReplaceTempView("awDataset");
+        waDataset.createOrReplaceTempView("waDataset");
+        long countingAnsw = awDataset.groupBy("0").count().count();
+        //long countingAnsw = spark.sql("select count() from awDataset group by ANSWER").count();
         writerResults.writeMsg("--- timestamp: " + new Timestamp(System.currentTimeMillis()));
-        writerResults.writeMsg("Counting answers on dataset: " + countingAnsw);
+        writerResults.writeMsg("Counting answers on awDataset: " + countingAnsw);
         /*
         local debug
         */
-        dataset.groupBy("ANSWER").count().show();
-        System.out.println("Counting answers on dataset: " + countingAnsw);
+        awDataset.groupBy("0").count().show();
+        System.out.println("Counting answers on awDataset: " + countingAnsw);
         if(countingAnsw <= 1L) {
             writerResults.writeMsg("Exiting due to no ANSWER");
             spark.stop();
@@ -156,7 +138,7 @@ public class QASdecTree {
         extrac the attributes
         */
         List<String> attributes;
-        attributes = new ArrayList<>(Arrays.asList(dataset.schema().fieldNames()));
+        attributes = new ArrayList<>(Arrays.asList(awDataset.schema().fieldNames()));
         /*
         attribute that i created, no need to process
         */
@@ -175,13 +157,13 @@ public class QASdecTree {
         /*
         build the tree
         */
-        buildTree(decisionTree, attributes, dataset, " 1");
+        buildTree(decisionTree, attributes, awDataset, " 1");
     }
     
-    private void buildTree(Node node, List<String> attributes, Dataset dataset, String alias) throws IOException {
-        dataset.createOrReplaceTempView("dataset");
+    private void buildTree(Node node, List<String> attributes, Dataset awDataset, String alias) throws IOException {
+        awDataset.createOrReplaceTempView("awDataset");
         treeNodes++;
-        node.setAttribute(chooseNodeBestAttribute(attributes, dataset));
+        node.setAttribute(chooseNodeBestAttribute(attributes, awDataset));
         writerResults.writeMsg("Node " + alias + ": " + node.getAttribute());
         writerResults.writeMsg("--- timestamp: " + new Timestamp(System.currentTimeMillis()));
         /*
@@ -192,17 +174,17 @@ public class QASdecTree {
         /*
         System.out.println("\n\n===============================================\n\n");
         System.out.println("Mostrando o completo: ");
-        dataset.show(10);
-        writerResults.writeMsg("dataset show: " + 
-                dataset.sqlContext().sql("select ANSWER, " + 
-                        node.getAttribute() + " from dataset").showString(10, 20, true));
+        awDataset.show(10);
+        writerResults.writeMsg("awDataset show: " + 
+                awDataset.sqlContext().sql("select ANSWER, " + 
+                        node.getAttribute() + " from awDataset").showString(10, 20, true));
         System.out.println("\n\n===============================================\n\n");
         */
 
         /*
         grow for left recursively
         */
-        Dataset<Row> leftDataset = dataset.filter("" + node.getAttribute() + " = 1");
+        Dataset<Row> leftDataset = awDataset.filter("" + node.getAttribute() + " = 1");
         //leftDataset.createOrReplaceTempView("leftDataset");
         System.out.println("\n\n===============================================\n\n");
         System.out.println("Mostrando o left: ");
@@ -222,7 +204,7 @@ public class QASdecTree {
         /*
         grow for right recursively
         */
-        Dataset<Row> rightDataset = dataset.filter("" + node.getAttribute() + " = 0");
+        Dataset<Row> rightDataset = awDataset.filter("" + node.getAttribute() + " = 0");
         //rightDataset.createOrReplaceTempView("rightDataset");
         System.out.println("\n\n===============================================\n\n");
         System.out.println("Mostrando o right: ");
@@ -247,17 +229,17 @@ public class QASdecTree {
      * Let's derive tree on the first answer, then,
      * next division for 2nd, and so on.
      * 
-     * calculate gini of dataset
+     * calculate gini of awDataset
      * 
      * T = total messages
      * C = total messages with Answer ci
      * CP = C/T
      * A = T - C (total other than C messages)
      * AP = A/T
-     * datasetGini = 1 - ((CP*CP + AP*AP))
+     * awDatasetGini = 1 - ((CP*CP + AP*AP))
      * 
      * calculate impact of each word (w1, w2, ..., wn) on the
-     * dataset with answer cj
+     * awDataset with answer cj
      * 
      * C = total messages with Answer cj and word wi
      * A = total messages with Answer not cj but with word wi
@@ -270,7 +252,7 @@ public class QASdecTree {
      * 
      * calculate discrimination power of each wi on cj
      * 
-     * dpi = datasetGini - (wiGini * (C/A))
+     * dpi = awDatasetGini - (wiGini * (C/A))
      * 
      * done, return max dpi
      *  - use wi (with max dpi) as tree node
@@ -279,27 +261,25 @@ public class QASdecTree {
      *  - send data with answer not cj to the right
      * 
      * @param attributes
-     * @param dataset
+     * @param awDataset
      * @return
      * @throws IOException 
      *      */
-    protected String chooseNodeBestAttribute(List<String> attributes, Dataset dataset) throws IOException {
-        dataset.createOrReplaceTempView("dataset");
+    protected String chooseNodeBestAttribute(List<String> attributes, Dataset awDataset) throws IOException {
+        awDataset.createOrReplaceTempView("awDataset");
         /*
         Answers are c1, c2, ..., c3.
         Obs.: If the node has only one answer, thats it!
         
         Let's derive tree spliting node on a picked answer, then, next division for 2nd, and so on.
-        pick first answer on node dataset.
+        pick first answer on node awDataset.
         
         Let's pick up first the answer with max lines, to maximaze the splitting:
         
         System.out.println("trying to get the answer with max lines:");
-        dataset.groupBy("ANSWER").count().orderBy(functions.column("count").desc()).show(20);
-
-        it worked!
+        awDataset.groupBy("ANSWER").count().orderBy(functions.column("count").desc()).show(20);
         */
-        Dataset<Row> consAnswer = dataset.groupBy("ANSWER").count().orderBy(functions.column("count").
+        Dataset<Row> consAnswer = awDataset.groupBy("0").count().orderBy(functions.column("count").
                 desc());
         int answer = consAnswer.first().getInt(0);
         if (debug) {
@@ -307,68 +287,87 @@ public class QASdecTree {
         }
         System.out.println("Choosing best attribute. Picked answer: " + answer);
         /*
-        calculate gini of dataset:
+        calculate gini of awDataset:
         T = total messages
         C = total messages with Answer ci
         CP = C/T
         A = T - C (total other than C messages)
         AP = A/T
-        datasetGini = 1 - ((CP*CP + AP*AP))
+        awDatasetGini = 1 - ((CP*CP + AP*AP))
         */
         double totalAnswers = (double) consAnswer.count();
         double msgWithAnswer = (double) consAnswer.first().getLong(1);
         double pMsgWithAnswer = msgWithAnswer / totalAnswers;
         double pMsgWithoutAnswer = (totalAnswers - msgWithAnswer) / totalAnswers;
-        double datasetGini = 1.0D - (pow(pMsgWithAnswer, 2) + pow(pMsgWithoutAnswer, 2));
+        double awDatasetGini = 1.0D - (pow(pMsgWithAnswer, 2) + pow(pMsgWithoutAnswer, 2));
         System.out.println("Total answers: " + totalAnswers +
                 " messages with answer " + answer + ": " + msgWithAnswer);
-        System.out.println("Datset Gini = " + datasetGini);
+        System.out.println("Datset Gini = " + awDatasetGini);
         /*
         calculate impact of each word (w1, w2, ..., wn) on the
-        dataset with answer cj.
-        so, dataset can be reduced to lines with answer cj.
+        awDataset with answer cj.
+        so, awDataset can be reduced to lines with answer cj.
         */
-        Dataset<Row> filteredToAnswer = dataset.filter("Answer = " + answer);
+        Dataset<Row> filteredToAnswer = awDataset.filter("Answer = " + answer);
         String[] colsFta = filteredToAnswer.columns();
         
-        Dataset<Row> sFilteredToAnswer = filteredToAnswer.groupBy("ANSWER").sum(colsFta);
-        // sFilteredToAnswer.show(20);
+        Dataset<Row> sFilteredToAnswer = filteredToAnswer.groupBy("" + answer).sum(colsFta);
+        sFilteredToAnswer.show(20);
         String[] sColsFta = sFilteredToAnswer.columns();
-        JavaRDD sFJRDD = sFilteredToAnswer.javaRDD();
-        List res = sFJRDD.collect();
-        /*        //JavaRDD psFJRDD = jsc.parallelize(sFJRDD.collect());
+
+        int aa=10;
+        // opera em uma coluna, aceita valores externos
+        // posso usar em wa com a coluna da resposta escolhida, calculando o gini de todas
+        // as palavras, para verificar qual o maior ...
+        Dataset<Integer> damn = waDataset.select("" + answer).flatMap((FlatMapFunction<Row, Integer>) value -> {
+            return Arrays.asList((value.getInt(0)<0 ? 0: value.getInt(0) * aa)).iterator();
+                }, Encoders.INT());
+        Iterator<Integer> it = damn.collectAsList().iterator();
+        int max = -1;
+        int val;
+        while(it.hasNext()) {
+            val = it.next();
+            if(val>max) {
+                max = val;
+            }
+        }
+        System.out.println("Maior valor: " + max);
+        /*
+            Cw = total messages with Answer cj and word wi
+            Aw = total messages with Answer not cj but with word wi
+            Tw = total messages with word wi
+            Tw = Cw+Aw
+            CPw = Cw/Tw
+            APw = Aw/Tw
+            wiGini = 1 - ((CPw*CPw) + (APw*APw))
+
+            (Here I think it's better do not use the gini of absence of wi).
+
+            calculate discrimination power of each wi on cj
+            dpi = awDatasetGini - (wiGini * (C/A))
+            done, return max dpi
+         */
+
+        
+        /*
+        
+        List res = psfAw.collect();
+        //JavaRDD psfAw = jsc.parallelize(sfAw.collect());
         JavaPairRDD<Integer, Integer> pairs;
-        pairs = sFJRDD.mapToPair((Object s) -> new Tuple2(1, new Integer(s.toString())));
+        pairs = sfAw.mapToPair((Object s) -> new Tuple2(1, new Integer(s.toString())));
         Object []apairs = pairs.collectAsMap().keySet().toArray();
         System.out.println("Some keys ...");
         for(int i = 0; i<20; i++) {
         System.out.println("key " + i + "= " + (Integer) apairs[i]);
         }
-        //List res = sFJRDD.filter(v -> new Integer(v.toString()) != 0).collect();
-        */
+        //List res = sfAw.filter(v -> new Integer(v.toString()) != 0).collect();
+        
         for(int i=0; i<res.size() && i<5; i++) {
             System.out.println("JavaRDD element " + i + " = " + res.get(i).toString());
         }
+        */
         spark.stop();
         System.exit(0);
-        RelationalGroupedDataset sFTT = sFilteredToAnswer.groupBy("Answer").pivot("Answer");
-        sFTT.count().show(20);
-        long vv1 = sFilteredToAnswer.select(sColsFta[2]).first().getLong(0);
-        long vv2 = sFilteredToAnswer.select(sColsFta[18]).first().getLong(0);
-        long vv3 = sFilteredToAnswer.select(sColsFta[19]).first().getLong(0);
-        /*
-        Na verdade quero usar isso para descartar as colunas com valor zero,
-        pois elas não devem ter influência ma resposta ...
-        */
-        System.out.println("Valor de " + colsFta[1] + " (" + sColsFta[2]  + ") " + " = " + vv1);
-        System.out.println("Valor de " + colsFta[17] + " (" + sColsFta[18]  + ") " + " = " + vv2);
-        System.out.println("Valor de " + colsFta[18] + " (" + sColsFta[19]  + ") " + " = " + vv3);
-        for(int i = 2; i<sColsFta.length; i++) {
-            if(sFilteredToAnswer.select(sColsFta[i]).first().getLong(0) == 0) {
-                attributes.remove(colsFta[i-1]);
-                System.out.println("Atributo " + colsFta[i-1] + " removido por ser 0");
-            }
-        }
         
         System.out.println("Reduced to Answer " + answer +
                 " size: " + filteredToAnswer.count());
@@ -401,7 +400,7 @@ public class QASdecTree {
             (Here I think it's better do not use the gini of absence of wi).
 
             calculate discrimination power of each wi on cj
-            dpi = datasetGini - (wiGini * (C/A))
+            dpi = awDatasetGini - (wiGini * (C/A))
             done, return max dpi
             */
 
@@ -419,7 +418,7 @@ public class QASdecTree {
             /*
             A = total messages with Answer not cj but with word wi.
             */
-            double total = (double)dataset.filter("" + attribute + " =1").count();
+            double total = (double)awDataset.filter("" + attribute + " =1").count();
             double tot_a = total - tot_c;
             /*
             CP = C/T
@@ -452,7 +451,7 @@ public class QASdecTree {
         return maxAttribute;
     }
 
-    protected boolean checkForEndingOfNodeSplit(List<String> attributes, Dataset dataset) throws IOException {
+    protected boolean checkForEndingOfNodeSplit(List<String> attributes, Dataset awDataset) throws IOException {
         /*
         if there are no more attributes to check, stop splitting
         */
@@ -463,14 +462,14 @@ public class QASdecTree {
         /*
         if there is only one answer on data, stop splitting
         */
-        dataset.createOrReplaceTempView("dataset");
-        if(dataset.groupBy("ANSWER").count().count() <= 1L) {
-            writerResults.writeMsg("Only one (or none) answers on dataset, stoping branch.");
+        awDataset.createOrReplaceTempView("awDataset");
+        if(awDataset.groupBy("ANSWER").count().count() <= 1L) {
+            writerResults.writeMsg("Only one (or none) answers on awDataset, stoping branch.");
             /*
             local debug
             */
-            System.out.println("Only one (or none) answers on dataset, stoping branch.");
-            dataset.groupBy("ANSWER").count().show();
+            System.out.println("Only one (or none) answers on awDataset, stoping branch.");
+            awDataset.groupBy("ANSWER").count().show();
             return true;
         }
         return false;
