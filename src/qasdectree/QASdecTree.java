@@ -79,6 +79,23 @@ public class QASdecTree {
                 .reduce((a, b) -> a.getLong(1) > b.getLong(1) ? a : b).getString(0);
         System.out.println("Most frequent answer: " + mostFrequentAnswer);
         groupedAnswers.filter(headers[0] + " like \"%1262%\"").show();
+        /*
+        For best word choice
+        
+        T = number of messages 
+        C = number of messages with answer c
+        A = number of messages with answer not c
+        
+        Gini = 1 - (pow(C/T,2) + pow((T-C)/T,2))
+        
+        */
+        
+        double T = (double) trainingSample.count();
+        double C = (double) trainingSample.filter(words.get(0).concat(" like \"%" + mostFrequentAnswer + "%\"")).count();
+        double Gini = 1 - (Math.pow(C/T, 2) + Math.pow((T-C)/T, 2));
+
+        
+        
     }
 
     public static void main(String[] args) {
