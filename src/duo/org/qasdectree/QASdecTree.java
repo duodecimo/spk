@@ -1,5 +1,6 @@
 package duo.org.qasdectree;
 
+import org.apache.commons.lang.time.DurationFormatUtils;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.apache.spark.sql.DataFrameReader;
@@ -11,7 +12,10 @@ import static java.lang.Math.pow;
 import static org.apache.spark.sql.functions.col;
 
 import java.io.Serializable;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -41,14 +45,24 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class QASdecTree implements Serializable {
     private boolean debugging = true;
+    private long startTime;
 
     public QASdecTree() {
+        startTime = System.currentTimeMillis();
         Logger.getLogger("org").setLevel(Level.ERROR);
         SparkSession session = SparkSession.builder().appName("qasdectree").master("local[*]").getOrCreate();
 
         DataFrameReader dataFrameReader = session.read();
 
-        Dataset<Row> messages = dataFrameReader.option("header","true").csv("in/teste.csv");
+        /*
+        Carga do conjunto de mensagens
+         */
+        Dataset<Row> messages = dataFrameReader.option("header","true").csv("/extra2/mySpark/javaNetbeans/data/Training.csv");
+        //Dataset<Row> messages = dataFrameReader.option("header","true").csv("in/teste.csv");
+
+        //messages.cache();
+
+        mydebug("Tempo decorrido para carregar os dados: " + elapsedTime());
         /*
         obter array com os cabeçalhos das colunas
          */
@@ -56,35 +70,42 @@ public class QASdecTree implements Serializable {
         /*
         obter uma lista das palavras (são os cabeçalhos sem a primeira coluna, que é a de respostas (Answers)
          */
-        List<String> words = new ArrayList<>();
-        words.addAll(Arrays.asList(headers));
+        List<String> words = new ArrayList<>(Arrays.asList(headers));
         words.remove(0);
         /*
         vamos garantir que as colunas de palavras tenham tipo de dado inteiro
-         */
+
+        messages.cache();
+        int countColumns = 0;
         for (String c: words) {
             messages = messages.withColumn(c, messages.col(c).cast("integer"));
+            countColumns++;
+            if(countColumns % 10 == 0) {
+                mydebug("Convertidas " + countColumns + "/" + words.size()  + " colunas tempo decorrido " + elapsedTime());
+            }
         }
-        System.out.println("=== Mostrar o schema das mensagens ===");
-        messages.printSchema();
+        mydebug("Tempo decorrido para tranformar os tipos dos dados: " + elapsedTime());
+         */
 
-        System.out.println("=== Mostrar a tabela de mensagens ===");
-        messages.show();
+        //System.out.println("=== Mostrar o schema das mensagens ===");
+        //messages.printSchema();
+
+        //System.out.println("=== Mostrar a tabela de mensagens ===");
+        //messages.show();
 
         /*
         vamos escolher uma resposta para iniciar o processo:
         a resposta com maior número de ocorrências.
          */
         Dataset<Row> groupedMessages = messages.groupBy(headers[0]).count();
-        groupedMessages.cache();
-        groupedMessages.show();
+        // groupedMessages.show();
         String choosenAnswer = groupedMessages
                 .reduce((a, b) -> a.getLong(1) > b.getLong(1) ? a : b).getString(0);
         System.out.println("Resposta escolhida: " + choosenAnswer);
 
 
         /*
-        calculando gini de O
+        calculando gini de O (O = conjunto de mensagens e suas respostas)
 
         convenção para a nomeclatura das variáveis:
         q quantidade
@@ -98,7 +119,6 @@ public class QASdecTree implements Serializable {
         _ negativa
          */
 
-        messages.cache();
 
         /*
         quantidade total de mensagens
@@ -110,7 +130,7 @@ public class QASdecTree implements Serializable {
          */
         Dataset<Row> remessages = messages.filter(col(headers[0]).equalTo(choosenAnswer));
 
-        remessages.cache();
+        //remessages.cache();
 
         /*
         quantidade de mensagens com a resposta escolhida
@@ -125,14 +145,16 @@ public class QASdecTree implements Serializable {
         /*
         pam = taxa de mensagens sem a resposta escolhida (A)
          */
-        double tmre_ = (double) (qm - qmre) / qm;
+        double tmre_ = (qm - qmre) / qm;
         mydebug("taxa de mensagens sem a resposta escolhida: " + tmre_);
         double giniO = 1 - (pow(tmre, 2) + pow(tmre_, 2));
-        mydebug("Gini de O: " + giniO);
+        mydebug("GINI de O: " + giniO);
+        mydebug("Tempo decorrido para calcular o GINI de O: " + elapsedTime());
 
         /*
         calculando o gini de cada palavra
          */
+        int wordCount = 0;
         Map<String, Double> wordsGini = new ConcurrentHashMap<>();
         for (String word: words) {
             mydebug("=========================");
@@ -141,12 +163,12 @@ public class QASdecTree implements Serializable {
             /*
             quantidade  de mensagens com a palavra sendo avaliada
              */
-            double qmpa = (double) messages.filter(col(word).equalTo(1)).count();
+            double qmpa = (double) messages.filter(col(word).like("1")).count();
             mydebug("quantidade  de mensagens com a palavra sendo avaliada: " + qmpa);
             /*
             quantidade de mensagens com a resposta escolhida com a palavra avaliada
              */
-            double qmepa = (double) remessages.filter(col(word).equalTo(1)).count();
+            double qmepa = (double) remessages.filter(col(word).like("1")).count();
             mydebug("quantidade  de mensagens com a resposta escolhida e palavra sendo avaliada: " + qmepa);
             /*
             taxa de mensagens com a palavra sendo analisada e a resposta escolhida
@@ -167,24 +189,31 @@ public class QASdecTree implements Serializable {
             quantidade de mensagens sem a palavra avaliada com a resposta escolhida
              */
             double qmpa_re = qmre - qmepa;
+            mydebug("quantidade de mensagens sem a palavra avaliada com a resposta escolhida: " + qmpa_re);
             /*
             taxa de mensagens com a resposta escolhida sem a palavra avaliada
              */
             double tmpa_re = qmpa == 0.0d ? 0.0d : qmpa_re / qmpa;
+            mydebug("taxa de mensagens com a resposta escolhida sem a palavra avaliada: " + tmpa_re);
             /*
             taxa de mensagens sem a palavra avaliada e resposta diferente da escolhida
              */
             double tmpa_re_ = qmpa == 0.0d ? 0.0d : (qmpa - qmpa_re)/qmpa;
+            mydebug("taxa de mensagens sem a palavra avaliada e resposta diferente da escolhida: " + tmpa_re_);
             /*
             gini das mensagens sem a palavra sendo avaliada e com a resposta escolhida
              */
             double ginipa_re =  1 - (pow(tmpa_re, 2) + pow(tmpa_re_, 2));
+            mydebug("gini das mensagens sem a palavra sendo avaliada e com a resposta escolhida: " + ginipa_re);
             /*
             calculando o gini da palavra
              */
             double ginipa = giniO - ((ginipare * qm == 0.0d ? 0.0d : qmpa / qm) + (ginipa_re * qm == 0.0d ? 0.0d : qmpa_re / qm));
             wordsGini.put(word, ginipa);
             mydebug("gini da palavra avaliada: " + ginipa);
+            wordCount++;
+            mydebug("Tempo decorrido para calcular o GINI da palavra "  + word +
+                    "(" + wordCount + "/" + words.size() + ") : " + elapsedTime());
         }
         mydebug("==========================================");
         mydebug("resumo dos gini:");
@@ -208,6 +237,7 @@ public class QASdecTree implements Serializable {
         /*
         Fim!
          */
+        mydebug("Tempo decorrido total: " + elapsedTime());
         session.stop();
     }
 
@@ -219,8 +249,12 @@ public class QASdecTree implements Serializable {
         return debugging;
     }
 
+    private String elapsedTime() {
+        long millis = System.currentTimeMillis() - startTime;
+        return DurationFormatUtils.formatDuration(millis, "HH:mm:ss.S");
+    }
+
     public static void main(String[] args) {
         QASdecTree qaSdecTree = new QASdecTree();
     }
 }
-
