@@ -12,6 +12,7 @@ import static org.apache.spark.sql.functions.col;
 
 import java.io.Serializable;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  *
@@ -39,6 +40,8 @@ import java.util.*;
  *
  */
 public class QASdecTree implements Serializable {
+    private boolean debugging = true;
+
     public QASdecTree() {
         Logger.getLogger("org").setLevel(Level.ERROR);
         SparkSession session = SparkSession.builder().appName("qasdectree").master("local[*]").getOrCreate();
@@ -101,6 +104,7 @@ public class QASdecTree implements Serializable {
         quantidade total de mensagens
          */
         double qm = (double) messages.count();
+        mydebug("quantidade total de mensagens: " + qm);
         /*
         dataset apenas com as linhas da resposta escolhida
          */
@@ -110,43 +114,55 @@ public class QASdecTree implements Serializable {
 
         /*
         quantidade de mensagens com a resposta escolhida
-s         */
+         */
         double qmre = (double) remessages.count();
+        mydebug("quantidade de mensagens com a resposta escolhida: " + qmre);
         /*
         pcm = taxa de mensagens com a resposta escolhida (C)
          */
         double tmre = qmre / qm;
+        mydebug("taxa de mensagens com a resposta escolhida: " + tmre);
         /*
         pam = taxa de mensagens sem a resposta escolhida (A)
          */
         double tmre_ = (double) (qm - qmre) / qm;
+        mydebug("taxa de mensagens sem a resposta escolhida: " + tmre_);
         double giniO = 1 - (pow(tmre, 2) + pow(tmre_, 2));
+        mydebug("Gini de O: " + giniO);
 
         /*
         calculando o gini de cada palavra
          */
-        Map<String, Double> wordsGini = new HashMap<>();
+        Map<String, Double> wordsGini = new ConcurrentHashMap<>();
         for (String word: words) {
+            mydebug("=========================");
+            mydebug("Palavra sendo avaliada: " + word);
+            mydebug("=========================");
             /*
             quantidade  de mensagens com a palavra sendo avaliada
              */
             double qmpa = (double) messages.filter(col(word).equalTo(1)).count();
+            mydebug("quantidade  de mensagens com a palavra sendo avaliada: " + qmpa);
             /*
             quantidade de mensagens com a resposta escolhida com a palavra avaliada
              */
             double qmepa = (double) remessages.filter(col(word).equalTo(1)).count();
+            mydebug("quantidade  de mensagens com a resposta escolhida e palavra sendo avaliada: " + qmepa);
             /*
             taxa de mensagens com a palavra sendo analisada e a resposta escolhida
              */
             double tmpare = qmpa==0.0d ? 0.0d : qmepa/qmpa;
+            mydebug("taxa de mensagens com a palavra sendo analisada e a resposta escolhida: " + tmpare);
             /*
             taxa de mensagens com a palavra sendo analisada e a resposta diferente da escolhida
              */
             double tmpare_ = qmpa == 0.0d ? 0.0d : (qmpa - qmepa)/qmpa;
+            mydebug("taxa de mensagens com a palavra sendo analisada e a resposta diferenta da escolhida: " + tmpare_);
             /*
             gini das mensagens com a palavra sendo avaliada e com a resposta escolhida
              */
             double ginipare = 1 - (pow(tmpare, 2) + pow(tmpare_, 2));
+            mydebug("gini das mensagens com a palavra sendo avaliada e com a resposta escolhida: " + ginipare);
             /*
             quantidade de mensagens sem a palavra avaliada com a resposta escolhida
              */
@@ -168,11 +184,26 @@ s         */
              */
             double ginipa = giniO - ((ginipare * qm == 0.0d ? 0.0d : qmpa / qm) + (ginipa_re * qm == 0.0d ? 0.0d : qmpa_re / qm));
             wordsGini.put(word, ginipa);
+            mydebug("gini da palavra avaliada: " + ginipa);
         }
-
-        for(int i = 0; i <wordsGini.size(); i++) {
-            System.out.println(words.get(i) + " gini = " + wordsGini.get(i));
+        mydebug("==========================================");
+        mydebug("resumo dos gini:");
+        String bestGiniWord = "";
+        double bestGini = -1.0d;
+        for (String key : wordsGini.keySet()) {
+            if(bestGiniWord.isEmpty()) {
+                bestGini = wordsGini.get(key);
+                bestGiniWord =key;
+            }
+            System.out.println(key + " " + wordsGini.get(key));
+            if(wordsGini.get(key)> bestGini) {
+                bestGini = wordsGini.get(key);
+                bestGiniWord =key;
+            }
         }
+        mydebug("==========================================");
+        mydebug("Palavra com melhor gini: " + bestGiniWord + " (gini " + bestGini + ")");
+        mydebug("==========================================");
 
         /*
         Fim!
@@ -180,7 +211,16 @@ s         */
         session.stop();
     }
 
+
+    private boolean mydebug(String s) {
+        if(debugging = true) {
+            System.out.println(s);
+        }
+        return debugging;
+    }
+
     public static void main(String[] args) {
         QASdecTree qaSdecTree = new QASdecTree();
     }
 }
+
