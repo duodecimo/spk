@@ -24,7 +24,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  *
- * @author duo
+ * @author duo 16/11/2018.
  *
  * Sobre a escolha da melhor palavra:
  *
@@ -55,7 +55,13 @@ public class QASdecTree implements Serializable {
     private final List<String> words;
 
     private QASdecTree() {
+        /*
+        debugging = true para mostrar mensagens do programa no console
+         */
         debugging = true;
+        /*
+        saveDebugging = true para gravar um aquivo de log na pasta de dados
+         */
         saveDebugging = true;
         try {
             debugLog = new DebugLog();
@@ -66,19 +72,52 @@ public class QASdecTree implements Serializable {
 
         startTime = System.currentTimeMillis();
         Logger.getLogger("org").setLevel(Level.ERROR);
-        SparkSession session = SparkSession.builder().appName("qasdectree").master("local[*]").getOrCreate();
+
+
+        SparkSession session = SparkSession.builder()
+                .appName("qasdectree")
+                .master("local[*]")
+                .config("spark.sql.codgen", true) /* compile or not queries to java bytecode */
+                .config("spark.sql.inMemoryColumnarStorage.batchSize", 1200) /* default = 1000 - smaller to avoid out of memory when caching */
+                .config("spark.dynamicAllocation.enabled", true)
+                .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
+                .config("spark.kryoserializer.buffer.max", "128m")
+                .config("spark.kryoserializer.buffer", "64m")
+                .config("spark.driver.memory", "2g") /* it is recommended to pass it in command line --driver-memory=2g as java is already started here */
+                .getOrCreate();
 
         DataFrameReader dataFrameReader = session.read();
 
         /*
         Carga do conjunto de mensagens
          */
-        //Dataset<Row> messages = dataFrameReader.option("header", "true").csv("/extra2/mySpark/javaNetbeans/data/Training.csv");
-        Dataset<Row> messages = dataFrameReader.option("header", "true").
-                csv("/extra2/mySpark/javaNetbeans/data/Training.csv").sample(true, 0.05d);
-        //Dataset<Row> messages = dataFrameReader.option("header","true").csv("in/teste.csv");
+        /*
+        descomente a opção abaixo para rodar com o dataset inteiro.
+         */
+        Dataset<Row> messages = dataFrameReader.option("header", "true").csv("/extra2/mySpark/javaNetbeans/data/Training.csv");
+        /*
+        Descomente a opção abaixo para rodar com uma amostra parcial do dataset.
+        o valor 0.1d por exemplo corresponde a 10%
+         */
+        //Dataset<Row> messages = dataFrameReader.option("header", "true").
+        //        csv("/extra2/mySpark/javaNetbeans/data/Training.csv").sample(true, 0.1d);
+        /*
+        descomente a opção abaixo para rodar com o pequeno dataset de teste.
+         */
+        //Dataset<Row> messages = dataFrameReader.option("header","true").csv("/extra2/mySpark/javaNetbeans/data/teste.csv");
 
         //messages.cache();
+
+        /*
+        spark configuration report
+         */
+        mydebug("Spark Configuration");
+        mydebug("===================");
+        mydebug("spark.sql.codgen".concat(" = ").concat(session.conf().get("spark.sql.codgen")));
+        mydebug("spark.sql.inMemoryColumnarStorage.batchSize".concat(" = ").concat(session.conf().get("spark.sql.inMemoryColumnarStorage.batchSize")));
+        mydebug("spark.dynamicAllocation.enabled".concat(" = ").concat(session.conf().get("spark.dynamicAllocation.enabled")));
+        mydebug("spark.driver.memory".concat(" = ").concat(session.conf().get("spark.driver.memory")));
+        mydebug("===================");
 
         mydebug("Tempo decorrido para carregar os dados: " + elapsedTime());
         /*
@@ -123,6 +162,8 @@ public class QASdecTree implements Serializable {
     }
 
     private Node createNode(Dataset<Row> messages, String answersRow, String nodeName) {
+        messages.cache();
+
         /*
         quantidade total de mensagens
          */
@@ -159,7 +200,7 @@ public class QASdecTree implements Serializable {
          */
         Dataset<Row> remessages = messages.filter(col(answersRow).equalTo(choosenAnswer));
 
-        //remessages.cache();
+        remessages.cache();
 
         /*
         quantidade de mensagens com a resposta escolhida
@@ -249,8 +290,11 @@ public class QASdecTree implements Serializable {
             wordsGini.put(word, ginipa);
             //mydebug("gini da palavra avaliada: " + ginipa);
             wordCount++;
+            if(wordCount % 20 == 0) {
+                mydebug("processadas "  + wordCount + "/" + words.size() + " em " + elapsedTime());
+            }
             //mydebug("Tempo decorrido para calcular o GINI da palavra "  + word +
-                    "(" + wordCount + "/" + words.size() + ") : " + elapsedTime());
+            //        "(" + wordCount + "/" + words.size() + ") : " + elapsedTime());
         }
         String bestGiniWord = "";
         double bestGini = -1.0d;
