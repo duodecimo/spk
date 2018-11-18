@@ -50,6 +50,8 @@ import java.util.concurrent.ConcurrentHashMap;
 public class QASdecTree implements Serializable {
     private final boolean debugging;
     private final boolean saveDebugging;
+    private final String TEST;
+    private final double PERCENTAGE;
     private DebugLog debugLog;
     private final long startTime;
     private final List<String> words;
@@ -94,32 +96,48 @@ public class QASdecTree implements Serializable {
         /*
         descomente a opção abaixo para rodar com o dataset inteiro.
          */
-        Dataset<Row> messages = dataFrameReader.option("header", "true").csv("/extra2/mySpark/javaNetbeans/data/Training.csv");
+        //TEST = "/extra2/mySpark/javaNetbeans/data/Training.csv";
+        /*
+        descomente a opção abaixo para rodar com o pequeno dataset de teste.
+         */
+        TEST = "/extra2/mySpark/javaNetbeans/data/teste.csv";
+        /*
+        Descomente a opção abaixo para rodar o dataset completo
+         */
+        //PERCENTAGE = 1.0d;
         /*
         Descomente a opção abaixo para rodar com uma amostra parcial do dataset.
         o valor 0.1d por exemplo corresponde a 10%
          */
-        //Dataset<Row> messages = dataFrameReader.option("header", "true").
-        //        csv("/extra2/mySpark/javaNetbeans/data/Training.csv").sample(true, 0.1d);
-        /*
-        descomente a opção abaixo para rodar com o pequeno dataset de teste.
-         */
-        //Dataset<Row> messages = dataFrameReader.option("header","true").csv("/extra2/mySpark/javaNetbeans/data/teste.csv");
+        PERCENTAGE = 0.9d;
+        Dataset<Row> messages;
+        if(PERCENTAGE < 1.0d) {
+            messages = dataFrameReader.option("header","true").csv(TEST).sample(true, PERCENTAGE);
+        } else {
+            messages = dataFrameReader.option("header","true").csv(TEST);
+        }
+
 
         //messages.cache();
 
         /*
         spark configuration report
          */
-        mydebug("Spark Configuration");
         mydebug("===================");
+        mydebug("Utilizando os dados extraidos de ".concat(TEST));
+        if(PERCENTAGE < 1.0d) {
+            mydebug("Aplicada taxa de redução nos dados originais de " + PERCENTAGE);
+        }
+        mydebug("-------------------");
+        mydebug("Spark Configuration");
         mydebug("spark.sql.codgen".concat(" = ").concat(session.conf().get("spark.sql.codgen")));
         mydebug("spark.sql.inMemoryColumnarStorage.batchSize".concat(" = ").concat(session.conf().get("spark.sql.inMemoryColumnarStorage.batchSize")));
         mydebug("spark.dynamicAllocation.enabled".concat(" = ").concat(session.conf().get("spark.dynamicAllocation.enabled")));
         mydebug("spark.driver.memory".concat(" = ").concat(session.conf().get("spark.driver.memory")));
+        mydebug("-------------------");
+        mydebug("Tempo decorrido para carregar os dados: " + elapsedTime());
         mydebug("===================");
 
-        mydebug("Tempo decorrido para carregar os dados: " + elapsedTime());
         /*
         obter array com os cabeçalhos das colunas
          */
@@ -128,12 +146,12 @@ public class QASdecTree implements Serializable {
         obter uma lista das palavras (são os cabeçalhos sem a primeira coluna, que é a de respostas (Answers)
          */
         words = new ArrayList<>(Arrays.asList(headers));
-        removeWord(headers[0]);
+        words.remove(headers[0]);
 
         /*
         criar a árvore de decisão
          */
-        Node QASdecisionTree = createNode(messages, headers[0], "root");
+        Node QASdecisionTree = createNode(messages, words, headers[0], "root");
         /*
         persistir a arvore
          */
@@ -161,7 +179,7 @@ public class QASdecTree implements Serializable {
 
     }
 
-    private Node createNode(Dataset<Row> messages, String answersRow, String nodeName) {
+    private Node createNode(Dataset<Row> messages, List<String> words, String answersRow, String nodeName) {
         messages.cache();
 
         /*
@@ -223,7 +241,7 @@ public class QASdecTree implements Serializable {
          */
         giniO = max(0, giniO);
         mydebug("GINI de O: " + giniO);
-        mydebug("Tempo decorrido para calcular o GINI de O: " + elapsedTime());
+        mydebug("Tempo decorrido: " + elapsedTime());
 
         /*
         calculando o gini de cada palavra
@@ -234,10 +252,31 @@ public class QASdecTree implements Serializable {
             //mydebug("=========================");
             //mydebug("Palavra sendo avaliada: " + word);
             //mydebug("=========================");
+
             /*
             quantidade  de mensagens com a palavra sendo avaliada
+
+            pode ser que aquí possa ser feito um grande aprimoramento:
+
+            se a palavra não está em nenhuma das mensagens, ela pode
+            ser removida da lista de palavras, e desta forma, não ser mais propagada
+            na árvore.
+            Naturalmente, a lista de palavras tem que ser copiada e passada como parametro
+            para o próximos nós.
+            O laço (loop) pod3 ser abandonado neste caso (palavra ausente das mensagens).
              */
             double qmpa = (double) messages.filter(col(word).like("1")).count();
+            if(qmpa==0.0d) {
+                /*
+                remover da lista de palavras
+                 */
+                words.remove(word);
+                /*
+                interromper o laço
+                 */
+                continue;
+            }
+
             //mydebug("quantidade  de mensagens com a palavra sendo avaliada: " + qmpa);
             /*
             quantidade de mensagens com a resposta escolhida com a palavra avaliada
@@ -303,7 +342,6 @@ public class QASdecTree implements Serializable {
                 bestGini = wordsGini.get(key);
                 bestGiniWord =key;
             }
-            System.out.println(key + " " + wordsGini.get(key));
             if(wordsGini.get(key)> bestGini) {
                 bestGini = wordsGini.get(key);
                 bestGiniWord =key;
@@ -323,7 +361,9 @@ public class QASdecTree implements Serializable {
         /*
         remove a palavra deste nó
          */
-        removeWord(bestGiniWord);
+        words.remove(bestGiniWord);
+
+        List<String> nodeWords = new ArrayList<>(words);
 
         /*
         verifica a expansão da árvore
@@ -339,7 +379,7 @@ public class QASdecTree implements Serializable {
             String sans = groupedMessagesPa.reduce((a, b) -> a.getLong(1) > b.getLong(1) ? a : b).getString(0);
             node.setLeft(new Node(null, sans));
             mydebug("Folha a esquerda com resposta: " + sans);
-        } else if(groupedMessagesPa.count() <1 || words.size() == 0) {
+        } else if(groupedMessagesPa.count() <1 || nodeWords.size() == 0) {
             /*
             não existe resposta ou esgotaram-se as palavras sem atingir uma única resposta (teria sido capturado acima)
             É uma folha sem decisão de resposta
@@ -350,7 +390,7 @@ public class QASdecTree implements Serializable {
             /*
             a expansão à esquerda continua
              */
-            node.setLeft(createNode(messagespa, answersRow, nodeName + ".L"));
+            node.setLeft(createNode(messagespa, nodeWords, answersRow, nodeName.concat(".L")));
         }
 
         Dataset<Row> groupedMessagesPa_ = messagespa_.groupBy(answersRow).count();
@@ -364,7 +404,7 @@ public class QASdecTree implements Serializable {
             String sans = groupedMessagesPa_.reduce((a, b) -> a.getLong(1) > b.getLong(1) ? a : b).getString(0);
             node.setRight(new Node(null, sans));
             mydebug("Folha à direita com resposta: " + sans);
-        } else if(groupedMessagesPa_.count() <1 || words.size() == 0) {
+        } else if(groupedMessagesPa_.count() <1 || nodeWords.size() == 0) {
             /*
             não existe resposta ou esgotaram-se as palavras sem atingir uma única resposta (teria sido capturado acima)
             É uma folha sem decisão de resposta
@@ -375,16 +415,11 @@ public class QASdecTree implements Serializable {
             /*
             a expansão à direita continua
              */
-            node.setRight(createNode(messagespa_, answersRow, nodeName + ".R"));
+            node.setRight(createNode(messagespa_, nodeWords, answersRow, nodeName.concat(".R")));
         }
         return node;
 
     }
-
-    private synchronized void removeWord(String s) {
-        words.remove(s);
-    }
-
 
     private void mydebug(String s) {
         if(debugging) {
