@@ -5,8 +5,17 @@ import os
 import csv
 from timeit import default_timer as timer
 
+class No():
+    def __init__(self):
+        self.esquerda = None
+        self.direita = None
+        self.palavra = None
+    def inserirPalavra(self, palavra):
+        self.palavra = palavra
+    def retornarPalavra(self):
+        return self.palavra
 
-def criaNo(mensagens, palavras, no='raiz'):
+def criaNo(mensagens, palavras, no, noNome='raiz'):
     qMens = np.shape(mensagens)[0]
     print('')
     print('='*79)
@@ -84,10 +93,24 @@ def criaNo(mensagens, palavras, no='raiz'):
     print(vGiniPalAval)
 
     # melhor palavra: a palavra com o maior GINI
-    PalEsc = palavras[np.argmax(vGiniPalAval) +1]
-    print('Melhor palavra: ', PalEsc);
-    
-
+    indPalEsc = np.argmax(vGiniPalAval)
+    PalEsc = palavras[indPalEsc +1]
+    print('Melhor palavra: ', PalEsc, ' indice: ', indPalEsc +1)
+    no.inserirPalavra(PalEsc)
+    print('conferindo palavra do no: ', no.retornarPalavra())
+    # dividir as mensagens entre as que contém a palavra com melhor GINI e as que não.
+    mensagensPalAval = mensagens[mensagens[:, indPalEsc+1]==1]
+    mensagens_PalAval = mensagens[mensagens[:, indPalEsc+1]==0]
+    print('mensagens que contém a melhor palavra:')
+    print(mensagensPalAval)
+    print('mensagens sem a melhor palavra:')
+    print(mensagens_PalAval)
+    # remove a palavra deste nó
+    mensagensPalAval = np.delete(mensagensPalAval, [indPalEsc+1], axis=1)
+    mensagens_PalAval = np.delete(mensagens_PalAval, [indPalEsc+1], axis=1)
+    palavrasProxNo = np.delete(palavras, [indPalEsc+1])
+    print('palavras proximo no:')
+    print(palavrasProxNo)
 
 inicio = timer()
 
@@ -95,7 +118,7 @@ mensagens = []
 
 #ler o arquivo csv
 
-
+'''
 with open("../../data/Training.csv", encoding='iso-8859-1') as csvfile:
     reader = csv.reader(csvfile)
     palavras = next(reader, None)
@@ -108,7 +131,7 @@ mensagens = np.asarray(mensagens, dtype = np.dtype('uint32'))
 mensagens=np.random.randint(2, size=(10, 8))
 mensagens[:,0] = np.random.randint(5,9,size=10)
 palavras=('resposta','a', 'b', 'c', 'd', 'e', 'f', 'g')
-'''
+
 
 print('Arquivo csv:')
 print('mensagens: ', len(mensagens))
@@ -120,7 +143,9 @@ print(s[:20])
 print('mensagens:')
 print(mensagens)
 
-criaNo(mensagens, palavras)
+arvore = No()
+
+criaNo(mensagens, palavras, arvore)
 
 fim = timer()
 print('tempo de execução (em segundos): ', fim - inicio) # Time in seconds, e.g. 5.3809195240028
