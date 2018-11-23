@@ -4,6 +4,8 @@ import numpy as np
 import os
 import csv
 from timeit import default_timer as timer
+import os
+import psutil
 
 class No():
     def __init__(self):
@@ -31,9 +33,13 @@ def dividir(x, y):
 def criaNo(mensagens, palavras, no, noNome='raiz'):
     global inicio
     global debug
+    global py
 
     fim = timer()
     print('='*79)
+    usoMemoria = py.memory_info()[0]/2.**30  # memory use in GB...I think
+    print('uso de memoria:', usoMemoria)
+
     print('')
     print('Ate o no ', noNome, ': ')
     print(' tempo (em segundos): ', fim - inicio) # Time in seconds, e.g. 5.3809195240028
@@ -181,15 +187,20 @@ def criaNo(mensagens, palavras, no, noNome='raiz'):
 
 
 
+# o limite de recursão padrão é = 1000
+# não está sendo suficiente, vamos aumentar.
+sys.setrecursionlimit(2000).
+
 inicio = timer()
 
 debug = False
+pid = os.getpid()
+py = psutil.Process(pid)
 
 mensagens = []
 
 #ler o arquivo csv
 
-'''
 with open("../../data/Training.csv", encoding='iso-8859-1') as csvfile:
     reader = csv.reader(csvfile)
     palavras = next(reader, None)
@@ -202,7 +213,7 @@ mensagens = np.asarray(mensagens, dtype = np.dtype('uint32'))
 mensagens=np.random.randint(2, size=(10, 8))
 mensagens[:,0] = np.random.randint(5,9,size=10)
 palavras=('resposta','a', 'b', 'c', 'd', 'e', 'f', 'g')
-
+'''
 
 print('Arquivo csv:')
 print('mensagens: ', len(mensagens))
