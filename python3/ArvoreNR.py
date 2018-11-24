@@ -42,6 +42,22 @@ class No(): # é o objeto do dicionário árvore
     def eFolha(self):
         return self.folha
 
+import threading
+import Queue
+
+def ProcessadorDeNosDados():
+    def __init__(self, noDados):
+        self.noDados = noDados
+    def tarefaDeCalcular(self):
+        global arvore
+        global filaDeNos
+        # Processa o noDados
+        (noDadosEsq, noDadosDir) = calculaNo(noDados)
+        # coloca na fila de nós a calcular
+        filaDeNos.append(noDadosEsq)
+        filaDeNos.append(noDadosDir)
+        # coloca o nó calculado na árvore
+        arvore[noDados.retIndice()] = No(noDados)      
 
 def main():
 

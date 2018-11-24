@@ -7,7 +7,11 @@ from timeit import default_timer as timer
 import os
 import psutil
 import sys
+import pickle
+from datetime import datetime
+from multiprocessing.dummy import Pool as ThreadPool
 
+#globais
 inicio = timer()
 debug = True
 pid = os.getpid()
@@ -56,10 +60,38 @@ class No(): # é o objeto do dicionário árvore
     def eFolha(self):
         return self.folha
 
+def ProcessadorDeNosDados():
+    def __init__(self, noDados):
+        self.noDados = noDados
+    def tarefaDeCalcular(self):
+        global arvore
+        global filaDeNos
+        # Processa o noDados
+        (noDadosEsq, noDadosDir) = calculaNo(noDados)
+        # coloca na fila de nós a calcular
+        filaDeNos.append(noDadosEsq)
+        filaDeNos.append(noDadosDir)
+        # coloca o nó calculado na árvore
+        arvore[noDados.retIndice()] = No(noDados)      
+
+
 def dividir(x, y):
     if y==0: return 0
     return x/y
 
+def salvarArvore(arvore):
+    comp = datetime.now().strftime('%Y_%m_%d_%H_%M_%S_%f')[:-2] 
+    nomeArq = 'arvore_' + comp + '.pkl'
+    arq = open(nomeArq,'wb')
+    pickle.dump(arvore, arq, pickle.HIGHEST_PROTOCOL)
+    arq.close()
+    return nomeArq
+
+def CarregarArvore(nomeArq):
+    arq = open(nomeArq,'rb')
+    arvore = pickle.load(arq)
+    arq.close()
+    return arvore
 
 def calculaNo(noDados):
     global inicio
@@ -191,7 +223,6 @@ def calculaNo(noDados):
     # para de expandir
     # à esquerda
     
-    #TODO : devo estar fazendo confusão aquí:
     # primeiro preciso verificar se há menos que duas respostas,
     # melhor agrupar os dados pelas respostas (primeira coluna) 
     # e verificar se há menos de duas linhas, caso sim,
@@ -199,26 +230,35 @@ def calculaNo(noDados):
     # segundo preciso verificar o numero de linhas de mensagens,
     # se houver menos que duas mensagens é folha!
     # melhor usar a dimensão 1 de matriz para isso ...
-    
+    qMensE = np.size(mensagensPalAval,0)
     noDadosEsqResp = np.unique(mensagensPalAval[:,0])
     # a primeira coluna tem as respostas, as palavras começam a partir da segunda coluna
     # portanto, mensagens com uma unica resposta possuem pelo menos dois elementos
-    if len(noDadosEsqResp) < 1:
-        # se for 2, resta apenas uma resposta, é um nó folha!
-        # se menor, não existem respostas ou esgotaram-se as palavras sem atingir uma única resposta
-        # É uma folha sem decisão de resposta
+    if len(noDadosEsqResp) < 2 or qMensE <2:
+        # len(noDadosEsqResp):
+        #  se for 2, resta apenas uma resposta, é um nó folha!
+        #  se menor, não existem respostas ou esgotaram-se as palavras sem atingir uma única resposta
+        #  É uma folha sem decisão de resposta
+        # qMensE <2:
+        # quantidade de mensagens na partição.
+        # se for < 2 não há mais o que quebrar, é uma folha!
         noDadosEsq.atribFolha(True)
-        # só colocar respostas em nós folha
+        # sempre e só colocar respostas em nós folha
         noDadosEsq.insRespostas(noDadosEsqResp)
         if debug: print('folha com resposta(s) unica: ', noDadosEsqResp, ' a esquerda do no ', indice)
     # à direita
+    qMensD = np.size(mensagens_PalAval, 0)
     noDadosDirResp = np.unique(mensagens_PalAval[:,0])
     # a primeira coluna tem as respostas, as palavras começam a partir da segunda coluna
     # portanto, mensagens com uma unica resposta possuem pelo menos dois elementos
-    if len(noDadosDirResp) < 1:
-        # se for 2, resta apenas uma resposta, é um nó folha!
-        # se menor, não existem respostas ou esgotaram-se as palavras sem atingir uma única resposta
-        # É uma folha sem decisão de resposta
+    if len(noDadosDirResp) < 2 or qMensD <2:
+        # len(noDadosDirResp):
+        #  se for 2, resta apenas uma resposta, é um nó folha!
+        #  se menor, não existem respostas ou esgotaram-se as palavras sem atingir uma única resposta
+        #  É uma folha sem decisão de resposta
+        # qMensD <2:
+        # quantidade de mensagens na partição.
+        # se for < 2 não há mais o que quebrar, é uma folha!
         noDadosDir.atribFolha(True)
         # só colocar respostas em nós folha
         noDadosDir.insRespostas(noDadosDirResp)
@@ -273,18 +313,28 @@ def main():
     # dados do nó raiz
     #noDados = NoDados(indice, palavras, mensagens)
     noDados = NoDados(0, palavras, mensagens)
-    while(True):
-        if(not noDados.eFolha()):
-            (noDadosEsq, noDadosDir) = calculaNo(noDados)
-            # coloca na fila de nós a calcular
-            filaDeNos.append(noDadosEsq)
-            filaDeNos.append(noDadosDir)
-            # coloca o nó calculado na árvore
-            arvore[noDados.retIndice()] = No(noDados)
-            if debug: print('inserido na arvore indice: ', noDados.retIndice())
+    pool = ThreadPool(4)
+    while True:
+        #(noDadosEsq, noDadosDir) = calculaNo(noDados)
+        ## coloca na fila de nós a calcular
+        #filaDeNos.append(noDadosEsq)
+        #filaDeNos.append(noDadosDir)
+        ## coloca o nó calculado na árvore
+        #arvore[noDados.retIndice()] = No(noDados)
+        #if debug: print('inserido na arvore indice: ', noDados.retIndice())
         # retira nó não calculado da fila
+        pool.map(ProcessadorDeNosDados, noDados)
+
         try:
-            noDados = filaDeNos.pop(0)
+            while True: # enquanto não conseguir noDados para calcular
+                noDados = filaDeNos.pop(0)
+                # se for folha, não deve ser calculado
+                # deve ser colocado na árvore e mais
+                # um noDado deve ser retirado da fila
+                if noDados.eFolha():
+                    arvore[noDados.retIndice()] = No(noDados)
+                else:
+                    break
         except (ValueError, IndexError) as erro :
             # a arvore esta provávelmente vazia, fim de processamento
             # obs: quando usar threads, é preciso verificar
@@ -292,21 +342,41 @@ def main():
             # acrescentar novos nós a fila!
             break
 
-    #percorrer a arvore gerada
-    print('Percorrendo um pouco arvore gerada')
-    visitas = 0
-    proximo = [0]
-    while(len(proximo)>0):
-        ind = proximo.pop(0)
-        no = arvore.get(ind)
-        print('no: ', ind)
-        if not no.eFolha():
-            proximo.append(ind*2+1)
-            proximo.append(ind*2+2)
-            print('  palavra  : ', no.Palavra())
-        else:
-            print('  respostas: ', no.Respostas())
+    if debug:
+        #percorrer a arvore gerada
+        print('Percorrendo a arvore gerada')
+        visitas = 0
+        proximo = [0]
+        while(len(proximo)>0):
+            ind = proximo.pop(0)
+            no = arvore.get(ind)
+            print('no: ', ind)
+            if not no.eFolha():
+                proximo.append(ind*2+1)
+                proximo.append(ind*2+2)
+                print('  palavra  : ', no.Palavra())
+            else:
+                print('  respostas: ', no.Respostas())
+        #salvar arvore
+        nomeArq = salvarArvore(arvore)
+        print('arvore salva no arquivo: ', nomeArq)
+        # ler arvore
+        arvore = CarregarArvore(nomeArq)
+        print('Percorrendo a arvore recuperada')
+        visitas = 0
+        proximo = [0]
+        while(len(proximo)>0):
+            ind = proximo.pop(0)
+            no = arvore.get(ind)
+            print('no: ', ind)
+            if not no.eFolha():
+                proximo.append(ind*2+1)
+                proximo.append(ind*2+2)
+                print('  palavra  : ', no.Palavra())
+            else:
+                print('  respostas: ', no.Respostas())
 
+    salvarArvore(arvore)
     fim = timer()
     print('tempo de execução (em segundos): ', fim - inicio) # Time in seconds, e.g. 5.3809195240028
 
