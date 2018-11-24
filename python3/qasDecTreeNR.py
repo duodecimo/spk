@@ -7,73 +7,68 @@ from timeit import default_timer as timer
 import os
 import psutil
 import sys
-#from tail_call_decorator import tail_call as tail
 
-class No():
-    def __init__(self, indice, palavras, pai, mensagens, nome):
-        self.indice = indice
-        self.esquerda = None
-        self.direita = None
-        self.palavra = None
-        self.respostas = None
-        self.mensagens = mensagens
-        self.palavras = palavras
-        self.nome = nome
-        self.pai = pai
-        self.folha = False
-        self.processado = False
+inicio = timer()
+debug = True
+pid = os.getpid()
+py = psutil.Process(pid)
 
-    def retornarIndice(self):
+
+class NoDados(): # possui atributos para processar e gerar o no da arvore
+    def __init__(self, indice, palavras, mensagens):
+        self.indice = indice # vai ser o indice do dicionario arvore
+        self.palavra = None # a melhor palavra que divide os nós
+        self.respostas = None # uma lista de respostas, para os nós folha, idealmente apenas uma resposta
+        self.mensagens = mensagens # matriz de mensagens a serem processadas
+        self.palavras = palavras # vetor de palavras a serem processadas
+        self.folha = False # indica se um nó é ou não folha
+
+    def retIndice(self):
         return self.indice
-    def inserirEsquerda(self, no):
-        self.esquerda = no
-    def inserirDireita(self, no):
-        self.direita = no
-    def retornarPalavra(self):
-        return self.palavras
-    def inserirRespostas(self, respostas):
-        self.respostas = respostas
-    def retornarRespostas(self):
-        return self.respostas
-    def inserirMensagens(self, mensagens):
-        self.mensagens = mensagens
-    def retornarMensagens(self):
-        return self.mensagens
-    def inserirPalavra(self, palavra):
-        self.palavras = palavras
-    def retornarPalavra(self):
+    def insPalavra(self, palavra):
+        self.palavra = palavra
+    def retPalavra(self):
         return self.palavra
-    def retornarPalavras(self):
+    def insRespostas(self, respostas):
+        self.respostas = respostas
+    def retRespostas(self):
+        return self.respostas
+    def insMensagens(self, mensagens):
+        self.mensagens = mensagens
+    def retMensagens(self):
+        return self.mensagens
+    def retPalavras(self):
         return self.palavras
-    def inserirNome(self, nome):
-        self.nome = nome
-    def retornarNome(self):
-        return self.nome
-    def retornarPai(self):
-        return self.pai
-    def determinarFolha(self, val):
+    def atribFolha(self, val):
         self.folha = val
     def eFolha(self):
         return self.folha
 
-class NoReduzido():
-    def __init__(self, no):
-        self.indice = no.retornarIndice()
-        self.palavra = no.retornarPalavra()
-        self.pai = no.retornarPai()
-        self.folha = no.eFolha()
-        self.respostas = no.retornarRespostas()
-
+class No(): # é o objeto do dicionário árvore
+    def __init__(self, noDados): # recebe como parâmetro um noDados, de onde extrai todos seus atributos
+        self.palavra = noDados.retPalavra() # utilizada para dividir a árvore, pode não existir em folhas
+        self.respostas = noDados.retRespostas()
+        self.folha = noDados.eFolha()
+    def Palavra(self):
+        return self.palavra
+    def Respostas(self):
+        return self.respostas
+    def eFolha(self):
+        return self.folha
 
 def dividir(x, y):
     if y==0: return 0
     return x/y
 
 
-def criaNo(mensagens, palavras, pai, nome='raiz'):
+def calculaNo(noDados):
     global inicio
     global debug
     global py
+
+    indice = noDados.retIndice()
+    palavras = noDados.retPalavras();
+    mensagens = noDados.retMensagens();
 
     fim = timer()
     print('='*79)
@@ -81,7 +76,7 @@ def criaNo(mensagens, palavras, pai, nome='raiz'):
     print('uso de memoria:', usoMemoria)
 
     print('')
-    print('Ate o no ', nome, ': ')
+    print('Ate o no ', indice, ': ')
     print(' tempo (em segundos): ', fim - inicio) # Time in seconds, e.g. 5.3809195240028
 
     qMens = np.shape(mensagens)[0]
@@ -169,9 +164,10 @@ def criaNo(mensagens, palavras, pai, nome='raiz'):
     # melhor palavra: a palavra com o maior GINI
     indPalEsc = np.argmax(vGiniPalAval)
     PalEsc = palavras[indPalEsc +1]
+    # inserir nos dados do nó a palavra que divide a árvore
+    noDados.insPalavra(PalEsc)
     if debug: print('Melhor palavra: ', PalEsc, ' indice: ', indPalEsc +1)
-    no.inserirPalavra(PalEsc)
-    if debug: print('conferindo palavra do no: ', no.retornarPalavra())
+    if debug: print('conferindo palavra do no: ', noDados.retPalavra())
     # dividir as mensagens entre as que contém a palavra com melhor GINI e as que não.
     mensagensPalAval = mensagens[mensagens[:, indPalEsc+1]==1]
     mensagens_PalAval = mensagens[mensagens[:, indPalEsc+1]==0]
@@ -179,108 +175,141 @@ def criaNo(mensagens, palavras, pai, nome='raiz'):
     if debug: print(mensagensPalAval)
     if debug: print('mensagens sem a melhor palavra:')
     if debug: print(mensagens_PalAval)
-    # remove a palavra deste nó
+    # remove a palavra dos novos conjuntos de mensagens (esquerdo e direito)
     mensagensPalAval = np.delete(mensagensPalAval, [indPalEsc+1], axis=1)
     mensagens_PalAval = np.delete(mensagens_PalAval, [indPalEsc+1], axis=1)
+    # ajusta a lista de palavras para os nós filhos (esquerdo e direito)
     palavrasProxNo = np.delete(palavras, [indPalEsc+1])
     if debug: print('palavras proximo no:')
     if debug: print(palavrasProxNo)
-    # verifica a expansão da árvore
-    noEsq = No(2*pai+1, palavrasProxNo, pai, mensagensPalAval, nome + ".L") # folhas terão resposta ou não terão palavras!
-    noDir = No(2*pai+2, palavrasProxNo, pai, mensagens_PalAval, nome + ".R")
-    #no.inserirEsquerda(noEsq)
-    #no.inserirDireita(noDir)
-    #  print('repostas ', len(np.unique(mensagensPalAval[:,0])))
-    #  print(np.unique(mensagensPalAval[:,0]))
-    noEsqResp = np.unique(mensagensPalAval[:,0])
-    # a primeira coluna tem as respostas, plavras começam a partir da segunda coluna
+    # inicia dados de nós de retorno
+    # NoDados(indice, palavras, mensagens)
+    noDadosEsq = NoDados(2*indice+1, palavrasProxNo, mensagensPalAval)
+    noDadosDir = NoDados(2*indice+2, palavrasProxNo, mensagens_PalAval)
+    # verifica a expansão da árvore:
+    # caso não hajam mais mensagens, ou caso só fique uma resposta,
+    # para de expandir
+    # à esquerda
+    
+    #TODO : devo estar fazendo confusão aquí:
+    # primeiro preciso verificar se há menos que duas respostas,
+    # melhor agrupar os dados pelas respostas (primeira coluna) 
+    # e verificar se há menos de duas linhas, caso sim,
+    # é folha!
+    # segundo preciso verificar o numero de linhas de mensagens,
+    # se houver menos que duas mensagens é folha!
+    # melhor usar a dimensão 1 de matriz para isso ...
+    
+    noDadosEsqResp = np.unique(mensagensPalAval[:,0])
+    # a primeira coluna tem as respostas, as palavras começam a partir da segunda coluna
     # portanto, mensagens com uma unica resposta possuem pelo menos dois elementos
-    if len(noEsqResp) == 2:
-        # resta apenas uma resposta, é um nó folha!
-        noEsq.determinarFolha(True)
-        if debug: print('folha com resposta unica: ', noEsqResp[0], ' a esquerda do no ', nome)
-    elif len(np.unique(mensagensPalAval[:,0])) <= 1:
-        # não existe resposta ou esgotaram-se as palavras sem atingir uma única resposta
-        # (teria sido capturado acima)
+    if len(noDadosEsqResp) < 1:
+        # se for 2, resta apenas uma resposta, é um nó folha!
+        # se menor, não existem respostas ou esgotaram-se as palavras sem atingir uma única resposta
         # É uma folha sem decisão de resposta
-        noEsq.determinarFolha(True)
-        if debug: print('folha vazia a esquerda do no ', nome)
-    noDirResp = np.unique(mensagens_PalAval[:,0])
-    # a primeira coluna tem as respostas, plavras começam a partir da segunda coluna
+        noDadosEsq.atribFolha(True)
+        # só colocar respostas em nós folha
+        noDadosEsq.insRespostas(noDadosEsqResp)
+        if debug: print('folha com resposta(s) unica: ', noDadosEsqResp, ' a esquerda do no ', indice)
+    # à direita
+    noDadosDirResp = np.unique(mensagens_PalAval[:,0])
+    # a primeira coluna tem as respostas, as palavras começam a partir da segunda coluna
     # portanto, mensagens com uma unica resposta possuem pelo menos dois elementos
-    if len(noDirResp) == 2:
-        # resta apenas uma resposta, é um nó folha!
-        noDir.determinarFolha(True)
-        if debug: print('folha com resposta unica: ', noDirResp[0], ' a direita do no ', nome)
-    elif len(np.unique(mensagens_PalAval[:,0])) <= 1:
-        # não existe resposta ou esgotaram-se as palavras sem atingir uma única resposta
-        # (teria sido capturado acima)
+    if len(noDadosDirResp) < 1:
+        # se for 2, resta apenas uma resposta, é um nó folha!
+        # se menor, não existem respostas ou esgotaram-se as palavras sem atingir uma única resposta
         # É uma folha sem decisão de resposta
-        noDir.determinarFolha(True)
-        if debug: print('folha vazia a direita do no ', nome)
-    return (noEsq,noDir)  
+        noDadosDir.atribFolha(True)
+        # só colocar respostas em nós folha
+        noDadosDir.insRespostas(noDadosDirResp)
+        if debug: print('folha com resposta(s): ', noDadosDirResp, ' a direita do no ', indice)
+
+    return (noDadosEsq, noDadosDir)  
 
 
+def main():
 
-# o limite de recursão padrão é = 1000
-# não está sendo suficiente, vamos aumentar.
-# estourou a memoria: sys.setrecursionlimit(4000)
-sys.setrecursionlimit(1000)
+    # a arvore é um dicionário
+    arvore = {}
+    # uma lista de nós a serem processados
+    filaDeNos = []
+    # o primeiro noDados é pré processado,
+    # por exemplo, recebe indice 0 (raiz).
+    # os próximos são gerados no calculo do noDados,
+    # o indice é calculado usando a formula
+    # indice esquerda = 2* indice atual + 1
+    # indice direita = 2* indice atual + 2
 
-inicio = timer()
+    # conjunto de treino
+    mensagens = []
 
-debug = False
-pid = os.getpid()
-py = psutil.Process(pid)
+    #ler o arquivo csv
 
-mensagens = []
+    '''
+    with open("../../data/Training.csv", encoding='iso-8859-1') as csvfile:
+        reader = csv.reader(csvfile)
+        palavras = next(reader, None)
+        for mensagem in reader:
+            mensagens.append(mensagem)
+    mensagens = np.asarray(mensagens, dtype = np.dtype('uint32'))
 
-#ler o arquivo csv
+    '''
 
-with open("../../data/Training.csv", encoding='iso-8859-1') as csvfile:
-    reader = csv.reader(csvfile)
-    palavras = next(reader, None)
-    for mensagem in reader:
-        mensagens.append(mensagem)
-mensagens = np.asarray(mensagens, dtype = np.dtype('uint32'))
+    # ou gerar treino randomico, para testes
+    mensagens=np.random.randint(2, size=(10, 8))
+    mensagens[:,0] = np.random.randint(5,9,size=10)
+    palavras=('resposta','a', 'b', 'c', 'd', 'e', 'f', 'g')
 
-# ou, para testes
-'''
-mensagens=np.random.randint(2, size=(10, 8))
-mensagens[:,0] = np.random.randint(5,9,size=10)
-palavras=('resposta','a', 'b', 'c', 'd', 'e', 'f', 'g')
-'''
+    print('Arquivo csv:')
+    print('mensagens: ', len(mensagens))
+    print('palavras: ', len(palavras))
 
-print('Arquivo csv:')
-print('mensagens: ', len(mensagens))
-print('palavras: ', len(palavras))
+    s = (mensagens[:,1:]==1).sum(axis=0)
+    print('soma: (quando valor = 1)')
+    print(s[:20])
+    print('mensagens:')
+    print(mensagens)
 
-s = (mensagens[:,1:]==1).sum(axis=0)
-print('soma: (quando valor = 1)')
-print(s[:20])
-print('mensagens:')
-print(mensagens)
+    # dados do nó raiz
+    #noDados = NoDados(indice, palavras, mensagens)
+    noDados = NoDados(0, palavras, mensagens)
+    while(True):
+        if(not noDados.eFolha()):
+            (noDadosEsq, noDadosDir) = calculaNo(noDados)
+            # coloca na fila de nós a calcular
+            filaDeNos.append(noDadosEsq)
+            filaDeNos.append(noDadosDir)
+            # coloca o nó calculado na árvore
+            arvore[noDados.retIndice()] = No(noDados)
+            if debug: print('inserido na arvore indice: ', noDados.retIndice())
+        # retira nó não calculado da fila
+        try:
+            noDados = filaDeNos.pop(0)
+        except (ValueError, IndexError) as erro :
+            # a arvore esta provávelmente vazia, fim de processamento
+            # obs: quando usar threads, é preciso verificar
+            # se ainda existem threads em execuçao, que podem
+            # acrescentar novos nós a fila!
+            break
 
-#nossa arvore é uma lista de nós
-arvore = []
-# vamos armazenar os nós processados
-arvoreFinal = []
-no = No(0, palavras, 0, mensagens, 'raiz')
-fim = False
-arvore.append(no)
-while(1):
-    if(not no.eFolha()):
-        (noEsq, noDir) = criaNo(no.retornarMensagens(), no.retornarPalavras(), no.retornarPai(), no.retornarNome())
-        arvore.append(noEsq)
-        arvore.append(noDir)
-    # proximo no não processado na arvore
-    try:
-        no = arvore.pop(0)
-        arvoreFinal.append(NoReduzido(no))
-    except (ValueError, IndexError) as erro :
-        # a arvore esta vazia, fim de processamento
-        break
+    #percorrer a arvore gerada
+    print('Percorrendo um pouco arvore gerada')
+    visitas = 0
+    proximo = [0]
+    while(len(proximo)>0):
+        ind = proximo.pop(0)
+        no = arvore.get(ind)
+        print('no: ', ind)
+        if not no.eFolha():
+            proximo.append(ind*2+1)
+            proximo.append(ind*2+2)
+            print('  palavra  : ', no.Palavra())
+        else:
+            print('  respostas: ', no.Respostas())
 
-fim = timer()
-print('tempo de execução (em segundos): ', fim - inicio) # Time in seconds, e.g. 5.3809195240028
+    fim = timer()
+    print('tempo de execução (em segundos): ', fim - inicio) # Time in seconds, e.g. 5.3809195240028
+
+if __name__ == "__main__":
+    main()
 
