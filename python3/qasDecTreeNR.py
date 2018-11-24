@@ -10,30 +10,67 @@ import sys
 #from tail_call_decorator import tail_call as tail
 
 class No():
-    def __init__(self):
+    def __init__(self, indice, palavras, pai, mensagens, nome):
+        self.indice = indice
         self.esquerda = None
         self.direita = None
         self.palavra = None
-        self.resposta = None
+        self.respostas = None
+        self.mensagens = mensagens
+        self.palavras = palavras
+        self.nome = nome
+        self.pai = pai
+        self.folha = False
+        self.processado = False
+
+    def retornarIndice(self):
+        return self.indice
     def inserirEsquerda(self, no):
         self.esquerda = no
     def inserirDireita(self, no):
         self.direita = no
+    def retornarPalavra(self):
+        return self.palavras
+    def inserirRespostas(self, respostas):
+        self.respostas = respostas
+    def retornarRespostas(self):
+        return self.respostas
+    def inserirMensagens(self, mensagens):
+        self.mensagens = mensagens
+    def retornarMensagens(self):
+        return self.mensagens
     def inserirPalavra(self, palavra):
-        self.palavra = palavra
+        self.palavras = palavras
     def retornarPalavra(self):
         return self.palavra
-    def inserirResposta(self, resposta):
-        self.resposta = resposta
-    def retornarResposta(self):
-        return self.resposta
+    def retornarPalavras(self):
+        return self.palavras
+    def inserirNome(self, nome):
+        self.nome = nome
+    def retornarNome(self):
+        return self.nome
+    def retornarPai(self):
+        return self.pai
+    def determinarFolha(self, val):
+        self.folha = val
+    def eFolha(self):
+        return self.folha
+
+class NoReduzido():
+    def __init__(self, no):
+        self.indice = no.retornarIndice()
+        self.palavra = no.retornarPalavra()
+        self.pai = no.retornarPai()
+        self.folha = no.eFolha()
+        self.respostas = no.retornarRespostas()
+
 
 def dividir(x, y):
     if y==0: return 0
     return x/y
 
 
-def criaNo(mensagens, palavras, no, noNome='raiz'):
+def criaNo(mensagens, palavras, pai, nome='raiz'):
     global inicio
     global debug
     global py
@@ -44,7 +81,7 @@ def criaNo(mensagens, palavras, no, noNome='raiz'):
     print('uso de memoria:', usoMemoria)
 
     print('')
-    print('Ate o no ', noNome, ': ')
+    print('Ate o no ', nome, ': ')
     print(' tempo (em segundos): ', fim - inicio) # Time in seconds, e.g. 5.3809195240028
 
     qMens = np.shape(mensagens)[0]
@@ -149,10 +186,10 @@ def criaNo(mensagens, palavras, no, noNome='raiz'):
     if debug: print('palavras proximo no:')
     if debug: print(palavrasProxNo)
     # verifica a expansão da árvore
-    noEsq = No() # folhas naõ terão palavras!
-    noDir = No()
-    no.inserirEsquerda(noEsq)
-    no.inserirDireita(noDir)
+    noEsq = No(2*pai+1, palavrasProxNo, pai, mensagensPalAval, nome + ".L") # folhas terão resposta ou não terão palavras!
+    noDir = No(2*pai+2, palavrasProxNo, pai, mensagens_PalAval, nome + ".R")
+    #no.inserirEsquerda(noEsq)
+    #no.inserirDireita(noDir)
     #  print('repostas ', len(np.unique(mensagensPalAval[:,0])))
     #  print(np.unique(mensagensPalAval[:,0]))
     noEsqResp = np.unique(mensagensPalAval[:,0])
@@ -160,33 +197,28 @@ def criaNo(mensagens, palavras, no, noNome='raiz'):
     # portanto, mensagens com uma unica resposta possuem pelo menos dois elementos
     if len(noEsqResp) == 2:
         # resta apenas uma resposta, é um nó folha!
-        noEsq.inserirResposta(noEsqResp[0])
-        if debug: print('folha com resposta unica: ', noEsqResp[0], ' a esquerda do no ', noNome)
+        noEsq.determinarFolha(True)
+        if debug: print('folha com resposta unica: ', noEsqResp[0], ' a esquerda do no ', nome)
     elif len(np.unique(mensagensPalAval[:,0])) <= 1:
         # não existe resposta ou esgotaram-se as palavras sem atingir uma única resposta
         # (teria sido capturado acima)
         # É uma folha sem decisão de resposta
-        if debug: print('folha vazia a esquerda do no ', noNome)
-    else:
-        # se chegou aqui, existe no esquerdo
-        # chama recursivamente
-        criaNo(mensagensPalAval, palavrasProxNo, noEsq, noNome + ".L")
+        noEsq.determinarFolha(True)
+        if debug: print('folha vazia a esquerda do no ', nome)
     noDirResp = np.unique(mensagens_PalAval[:,0])
     # a primeira coluna tem as respostas, plavras começam a partir da segunda coluna
     # portanto, mensagens com uma unica resposta possuem pelo menos dois elementos
     if len(noDirResp) == 2:
         # resta apenas uma resposta, é um nó folha!
-        noDir.inserirResposta(noDirResp[0])
-        if debug: print('folha com resposta unica: ', noDirResp[0], ' a direita do no ', noNome)
+        noDir.determinarFolha(True)
+        if debug: print('folha com resposta unica: ', noDirResp[0], ' a direita do no ', nome)
     elif len(np.unique(mensagens_PalAval[:,0])) <= 1:
         # não existe resposta ou esgotaram-se as palavras sem atingir uma única resposta
         # (teria sido capturado acima)
         # É uma folha sem decisão de resposta
-        if debug: print('folha vazia a direita do no ', noNome)
-    else:
-        # se chegou aqui, existe no esquerdo
-        # chama recursivamente
-        criaNo(mensagens_PalAval, palavrasProxNo, noDir, noNome + ".R")
+        noDir.determinarFolha(True)
+        if debug: print('folha vazia a direita do no ', nome)
+    return (noEsq,noDir)  
 
 
 
@@ -229,11 +261,26 @@ print(s[:20])
 print('mensagens:')
 print(mensagens)
 
-arvore = No()
-
-criaNo(mensagens, palavras, arvore)
+#nossa arvore é uma lista de nós
+arvore = []
+# vamos armazenar os nós processados
+arvoreFinal = []
+no = No(0, palavras, 0, mensagens, 'raiz')
+fim = False
+arvore.append(no)
+while(1):
+    if(not no.eFolha()):
+        (noEsq, noDir) = criaNo(no.retornarMensagens(), no.retornarPalavras(), no.retornarPai(), no.retornarNome())
+        arvore.append(noEsq)
+        arvore.append(noDir)
+    # proximo no não processado na arvore
+    try:
+        no = arvore.pop(0)
+        arvoreFinal.append(NoReduzido(no))
+    except (ValueError, IndexError) as erro :
+        # a arvore esta vazia, fim de processamento
+        break
 
 fim = timer()
 print('tempo de execução (em segundos): ', fim - inicio) # Time in seconds, e.g. 5.3809195240028
-
 
