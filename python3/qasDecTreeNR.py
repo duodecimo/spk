@@ -207,8 +207,9 @@ def calculaNo(noDados):
     if debug: print('Melhor palavra: ', PalEsc, ' indice: ', indPalEsc +1)
     if debug: print('conferindo palavra do no: ', noDados.retPalavra())
     # dividir as mensagens entre as que contém a palavra com melhor GINI e as que não.
-    #TODO mensagensPalAval = mensagens[mensagens[:, indPalEsc+1]==1]
-    #     IndexError: index 2 is out of bounds for axis 1 with size 1
+    #TODO   File "qasDecTreeNR.py", line 212, in calculaNo
+    #mensagensPalAval = mensagens[mensagens[:, indPalEsc+1]==1]
+    #IndexError: index 1 is out of bounds for axis 1 with size 1
     mensagensPalAval = mensagens[mensagens[:, indPalEsc+1]==1]
     mensagens_PalAval = mensagens[mensagens[:, indPalEsc+1]==0]
     if debug: print('mensagens que contém a melhor palavra:')
@@ -237,41 +238,48 @@ def calculaNo(noDados):
     # é folha!
     # segundo preciso verificar o numero de linhas de mensagens,
     # se houver menos que duas mensagens é folha!
-    # melhor usar a dimensão 1 de matriz para isso ...
-    qMensE = np.size(mensagensPalAval,0)
+    # melhor usar a dimensão 0 (conta linhas)  de matriz para isso ...
+
+    # vetor
     noDadosEsqResp = np.unique(mensagensPalAval[:,0])
     # a primeira coluna tem as respostas, as palavras começam a partir da segunda coluna
     # portanto, mensagens com uma unica resposta possuem pelo menos dois elementos
-    if len(noDadosEsqResp) < 2 or qMensE <2:
-        # len(noDadosEsqResp):
-        #  se for 2, resta apenas uma resposta, é um nó folha!
-        #  se menor, não existem respostas ou esgotaram-se as palavras sem atingir uma única resposta
-        #  É uma folha sem decisão de resposta
-        # qMensE <2:
-        # quantidade de mensagens na partição.
-        # se for < 2 não há mais o que quebrar, é uma folha!
+    if np.size(noDadosEsqResp, 0) < 1 or np.size(mensagensPalAval, 0) <2 \
+        or np.size(mensagensPalAval, 1) <2:
+        # np.size(noDadosEsqResp, 0) e np.size(mensagensPalAval, 0)
+        #  numero de linhas na matriz
+        #  se for <1, não existem mais mensagens, é um nó folha!
+        # np.size(noDadosDirResp, 1) e np.size(mensagensPalAval, 1)
+        #  numero de colunas na matriz
+        #  a primeira coluna é a de respostas, portanto
+        #  o numero de palavras é o número de colunas -1.
+        #  portanto, numero de colunas <2 significa
+        #  que não restam mais palavras a processar:
+        #  é uma folha!
+        #  caso tenha uma coluna, será a resposta.
+        #  caso não reste nenhuma coluna, será uma folha sem resposta.
         noDadosEsq.atribFolha(True)
         # sempre e só colocar respostas em nós folha
-        noDadosEsq.insRespostas(noDadosEsqResp)
+        if np.size(noDadosEsqResp, 0) >1:
+            noDadosEsq.insRespostas(noDadosEsqResp)
+        else:
+            # colocar as respotas do no pai
+            noDadosEsq.insRespostas(np.unique(mensagens[:,0]))
         if debug: print('folha com resposta(s) unica: ', noDadosEsqResp, ' a esquerda do no ', indice)
     # à direita
-    qMensD = np.size(mensagens_PalAval, 0)
     noDadosDirResp = np.unique(mensagens_PalAval[:,0])
     # a primeira coluna tem as respostas, as palavras começam a partir da segunda coluna
     # portanto, mensagens com uma unica resposta possuem pelo menos dois elementos
-    if len(noDadosDirResp) < 2 or qMensD <2:
-        # len(noDadosDirResp):
-        #  se for 2, resta apenas uma resposta, é um nó folha!
-        #  se menor, não existem respostas ou esgotaram-se as palavras sem atingir uma única resposta
-        #  É uma folha sem decisão de resposta
-        # qMensD <2:
-        # quantidade de mensagens na partição.
-        # se for < 2 não há mais o que quebrar, é uma folha!
+    if np.size(noDadosDirResp, 0) < 1 or np.size(mensagens_PalAval, 0) <2 \
+        or np.size(mensagens_PalAval, 1) <2:
         noDadosDir.atribFolha(True)
-        # só colocar respostas em nós folha
-        noDadosDir.insRespostas(noDadosDirResp)
+        # sempre e só colocar respostas em nós folha
+        if np.size(noDadosDirResp, 0) >1:
+            noDadosDir.insRespostas(noDadosDirResp)
+        else:
+            # colocar as respotas do no pai
+            noDadosDir.insRespostas(np.unique(mensagens[:,0]))
         if debug: print('folha com resposta(s): ', noDadosDirResp, ' a direita do no ', indice)
-
     return (noDadosEsq, noDadosDir)  
 
 
@@ -323,17 +331,25 @@ def main():
     #noDados = NoDados(indice, palavras, mensagens)
     noDados = NoDados(0, palavras, mensagens)
     filaDeNos.append(noDados)
-    pool = ThreadPool(8)
     while True:
         # vamos tentar usar uma pool para
         # processar de uma vez
         # todos os noDados disponíveis
-        filaDeNosProcessados = pool.map(calculaNo, filaDeNos)
+        pool = ThreadPool(4)
+        # pelas limitaçoes da máquina,
+        # quero processar no máximo 4 dados de nós de cada vez
+        maxProcessos = min(4, len(filaDeNos))
+        filaDeNosParalelos = []
+        for i in range(maxProcessos):
+            filaDeNosParalelos.append(filaDeNos.pop(0))
+        filaDeNosProcessados = pool.map(calculaNo, filaDeNosParalelos)
+        pool.close()
+        pool.join()
         if debug: print('Resultado do pool: ',  len(filaDeNosProcessados))
         # vamos processar as filas
         ## colocar o(s) nó(s) calculado(s) na árvore
-        for i in range(len(filaDeNos)):
-            noDados = filaDeNos.pop(0)
+        for i in range(len(filaDeNosParalelos)):
+            noDados = filaDeNosParalelos.pop(0)
             arvore[noDados.retIndice()] = No(noDados)
             if debug: print('arvore recebe palavra: ', noDados.retPalavra())
         # os dados de nós retornados que não forem folhas
@@ -357,7 +373,6 @@ def main():
         if debug: print('Ao fim da repeticao temos para processar: ', len(filaDeNos))
         if len(filaDeNos)==0:
             break
-
     if debug:
         #percorrer a arvore gerada
         print('Percorrendo a arvore gerada')
