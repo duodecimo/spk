@@ -273,6 +273,7 @@ def main():
     arvore = {}
     # uma lista de nós a serem processados
     filaDeNos = []
+    filaDeNosProcessados = []
     # o primeiro noDados é pré processado,
     # por exemplo, recebe indice 0 (raiz).
     # os próximos são gerados no calculo do noDados,
@@ -313,33 +314,40 @@ def main():
     # dados do nó raiz
     #noDados = NoDados(indice, palavras, mensagens)
     noDados = NoDados(0, palavras, mensagens)
-    pool = ThreadPool(4)
+    filaDeNos.append(noDados)
+    pool = ThreadPool(8)
     while True:
-        #(noDadosEsq, noDadosDir) = calculaNo(noDados)
-        ## coloca na fila de nós a calcular
-        #filaDeNos.append(noDadosEsq)
-        #filaDeNos.append(noDadosDir)
-        ## coloca o nó calculado na árvore
-        #arvore[noDados.retIndice()] = No(noDados)
-        #if debug: print('inserido na arvore indice: ', noDados.retIndice())
-        # retira nó não calculado da fila
-        pool.map(ProcessadorDeNosDados, noDados)
-
-        try:
-            while True: # enquanto não conseguir noDados para calcular
-                noDados = filaDeNos.pop(0)
-                # se for folha, não deve ser calculado
-                # deve ser colocado na árvore e mais
-                # um noDado deve ser retirado da fila
-                if noDados.eFolha():
-                    arvore[noDados.retIndice()] = No(noDados)
-                else:
-                    break
-        except (ValueError, IndexError) as erro :
-            # a arvore esta provávelmente vazia, fim de processamento
-            # obs: quando usar threads, é preciso verificar
-            # se ainda existem threads em execuçao, que podem
-            # acrescentar novos nós a fila!
+        # vamos tentar usar uma pool para
+        # processar de uma vez
+        # todos os noDados disponíveis
+        filaDeNosProcessados = pool.map(calculaNo, filaDeNos)
+        if debug: print('Resultado do pool: ',  len(filaDeNosProcessados))
+        # vamos processar as filas
+        ## colocar o(s) nó(s) calculado(s) na árvore
+        for i in range(len(filaDeNos)):
+            noDados = filaDeNos.pop(0)
+            arvore[noDados.retIndice()] = No(noDados)
+            if debug: print('arvore recebe palavra: ', noDados.retPalavra())
+        # os dados de nós retornados que não forem folhas
+        # devem ser acrescentados à fila de dados de nós,
+        # caso contrário vão para a árvore
+        for i in range(len(filaDeNosProcessados)):
+            (noDadosEsq, noDadosDir) = filaDeNosProcessados.pop(0)
+            noDados = noDadosEsq
+            if noDados.eFolha():
+                arvore[noDados.retIndice()] = No(noDados)
+                if debug: print('arvore recebe folha')
+            else:
+                filaDeNos.append(noDados)
+            noDados = noDadosDir
+            if noDados.eFolha():
+                arvore[noDados.retIndice()] = No(noDados)
+                if debug: print('arvore recebe folha')
+            else:
+                filaDeNos.append(noDados)
+        # se a fila de dados de nos estiver vazia encerra
+        if debug: print('Ao fim da repeticao temos para processar: ', len(filaDeNos))
+        if len(filaDeNos)==0:
             break
 
     if debug:
