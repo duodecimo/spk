@@ -195,13 +195,20 @@ def calculaNo(noDados):
 
     # melhor palavra: a palavra com o maior GINI
     # TODO ValueError: attempt to get argmax of an empty sequence
-    indPalEsc = np.argmax(vGiniPalAval)
-    PalEsc = palavras[indPalEsc +1]
+    try:
+        indPalEsc = np.argmax(vGiniPalAval)
+        PalEsc = palavras[indPalEsc +1]
+    except ValueError:
+        # provisoriamente vamos pegar a primeira palavra disponivel
+        PalEsc = [1]
+        indPalEsc = 0
     # inserir nos dados do nó a palavra que divide a árvore
     noDados.insPalavra(PalEsc)
     if debug: print('Melhor palavra: ', PalEsc, ' indice: ', indPalEsc +1)
     if debug: print('conferindo palavra do no: ', noDados.retPalavra())
     # dividir as mensagens entre as que contém a palavra com melhor GINI e as que não.
+    #TODO mensagensPalAval = mensagens[mensagens[:, indPalEsc+1]==1]
+    #     IndexError: index 2 is out of bounds for axis 1 with size 1
     mensagensPalAval = mensagens[mensagens[:, indPalEsc+1]==1]
     mensagens_PalAval = mensagens[mensagens[:, indPalEsc+1]==0]
     if debug: print('mensagens que contém a melhor palavra:')
