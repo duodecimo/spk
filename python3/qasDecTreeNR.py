@@ -13,7 +13,7 @@ from multiprocessing.dummy import Pool as ThreadPool
 
 #globais
 inicio = timer()
-debug = True
+debug = False
 pid = os.getpid()
 py = psutil.Process(pid)
 
@@ -194,6 +194,7 @@ def calculaNo(noDados):
     if debug: print(vGiniPalAval)
 
     # melhor palavra: a palavra com o maior GINI
+    # TODO ValueError: attempt to get argmax of an empty sequence
     indPalEsc = np.argmax(vGiniPalAval)
     PalEsc = palavras[indPalEsc +1]
     # inserir nos dados do nó a palavra que divide a árvore
@@ -286,7 +287,6 @@ def main():
 
     #ler o arquivo csv
 
-    '''
     with open("../../data/Training.csv", encoding='iso-8859-1') as csvfile:
         reader = csv.reader(csvfile)
         palavras = next(reader, None)
@@ -300,6 +300,7 @@ def main():
     mensagens=np.random.randint(2, size=(10, 8))
     mensagens[:,0] = np.random.randint(5,9,size=10)
     palavras=('resposta','a', 'b', 'c', 'd', 'e', 'f', 'g')
+    '''
 
     print('Arquivo csv:')
     print('mensagens: ', len(mensagens))
