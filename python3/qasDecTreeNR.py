@@ -337,8 +337,9 @@ def main():
         # todos os noDados disponíveis
         pool = ThreadPool(4)
         # pelas limitaçoes da máquina,
-        # quero processar no máximo 4 dados de nós de cada vez
-        maxProcessos = min(4, len(filaDeNos))
+        # quero processar no máximo n dados de nós de cada vez
+        n = 160
+        maxProcessos = min(n, len(filaDeNos))
         filaDeNosParalelos = []
         for i in range(maxProcessos):
             filaDeNosParalelos.append(filaDeNos.pop(0))
