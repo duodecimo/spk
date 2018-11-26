@@ -8,15 +8,23 @@ import os
 import psutil
 import sys
 import pickle
+import itertools
 from datetime import datetime
+from datetime import timedelta
 from multiprocessing.dummy import Pool as ThreadPool
-
+import pathlib
 #globais
-inicio = timer()
 debug = False
+executarTeste = False
+paralelizar = False
+inicio = timer()
 pid = os.getpid()
 py = psutil.Process(pid)
-
+qmaxmens = 0
+limitePersArv = 100000
+caminhoDePersistencia = '.'
+# valor recomendado 5.0
+intervaloMostra = 5.0
 
 class NoDados(): # possui atributos para processar e gerar o no da arvore
     def __init__(self, indice, palavras, mensagens):
@@ -80,8 +88,9 @@ def dividir(x, y):
     return x/y
 
 def salvarArvore(arvore):
+    global caminhoDePersistencia
     comp = datetime.now().strftime('%Y_%m_%d_%H_%M_%S_%f')[:-2] 
-    nomeArq = 'arvore_' + comp + '.pkl'
+    nomeArq =  caminhoDePersistencia + 'arvore_' + comp + '.pkl'
     arq = open(nomeArq,'wb')
     pickle.dump(arvore, arq, pickle.HIGHEST_PROTOCOL)
     arq.close()
@@ -93,27 +102,40 @@ def CarregarArvore(nomeArq):
     arq.close()
     return arvore
 
+def dividirArvore(arvore):
+    n = len(arvore) // 2
+    i = iter(arvore.items())      # alternatively, i = d.iteritems() works in Python 2
+
+    arvore1 = dict(itertools.islice(i, n))   # grab first n items
+    arvore2 = dict(i)                        # grab the rest
+
+    return arvore1, arvore2
+
+
 def calculaNo(noDados):
     global inicio
     global debug
     global py
+    global qmaxmens
 
     indice = noDados.retIndice()
     palavras = noDados.retPalavras();
     mensagens = noDados.retMensagens();
 
     fim = timer()
-    print('='*79)
-    usoMemoria = py.memory_info()[0]/2.**30  # memory use in GB...I think
-    print('uso de memoria:', usoMemoria)
-
-    print('')
-    print('Ate o no ', indice, ': ')
-    print(' tempo (em segundos): ', fim - inicio) # Time in seconds, e.g. 5.3809195240028
-
     qMens = np.shape(mensagens)[0]
-    print('quantidade de mensagens: ', qMens)
-    print('='*79)
+    if qMens > qmaxmens:
+        qmaxmens = qMens
+
+    if debug:
+        print('-'*79)
+        usoMemoria = py.memory_info()[0]/2.**30  # memory use in GB...I think
+        print('uso de memoria:', usoMemoria)
+        print('')
+        print('Ate o no ', indice, ': ')
+        print(' tempo (em segundos): ', str(timedelta(seconds=fim - inicio)))
+        print('quantidade de mensagens: ', qMens)
+        print('-'*79)
 
     # escolher uma resposta para iniciar o processo:
     #  a resposta com maior número de ocorrências.
@@ -225,8 +247,8 @@ def calculaNo(noDados):
     if debug: print(palavrasProxNo)
     # inicia dados de nós de retorno
     # NoDados(indice, palavras, mensagens)
-    noDadosEsq = NoDados(2*indice+1, palavrasProxNo, mensagensPalAval)
-    noDadosDir = NoDados(2*indice+2, palavrasProxNo, mensagens_PalAval)
+    noDadosEsq = NoDados(indice*2+1, palavrasProxNo, mensagensPalAval)
+    noDadosDir = NoDados(indice*2+2, palavrasProxNo, mensagens_PalAval)
     # verifica a expansão da árvore:
     # caso não hajam mais mensagens, ou caso só fique uma resposta,
     # para de expandir
@@ -284,9 +306,27 @@ def calculaNo(noDados):
 
 
 def main():
+    global executarTeste
+    global debug
+    global inicio
+    global py
+    global qmaxmens
+    global limitePersArv
+    global caminhoDePersistencia
+    global intervaloMostra
+
+    # caminho para persistir a arvore
+    caminhoDePersistencia = '../../arvorespklarmazenadas/grupo'
+    caminhoDePersistencia += datetime.now().strftime('%Y_%m_%d_%H_%M_%S_%f')[:-4] + '/'
+    # caso não exista, cria
+    pathlib.Path(caminhoDePersistencia).mkdir(parents=True, exist_ok=True)
 
     # a arvore é um dicionário
     arvore = {}
+    # caso seja nescessário persistir
+    #parcialmente a arvore para liberar memória
+    arvoresPers = []
+    numNosPersistidos = 0
     # uma lista de nós a serem processados
     filaDeNos = []
     filaDeNosProcessados = []
@@ -300,64 +340,82 @@ def main():
     # conjunto de treino
     mensagens = []
 
-    #ler o arquivo csv
+    
+    if executarTeste:
+        # gerar treino randomico, para testes
+        mensagens=np.random.randint(2, size=(10, 8))
+        mensagens[:,0] = np.random.randint(5,9,size=10)
+        palavras=('resposta','a', 'b', 'c', 'd', 'e', 'f', 'g')
+        print('Teste aleatório:')
+    else:
+        #ler o arquivo csv
+        with open("../../data/Training.csv", encoding='iso-8859-1') as csvfile:
+            reader = csv.reader(csvfile)
+            palavras = next(reader, None)
+            for mensagem in reader:
+                mensagens.append(mensagem)
+        mensagens = np.asarray(mensagens, dtype = np.dtype('uint32'))
+        print('Arquivo csv:')
 
-    with open("../../data/Training.csv", encoding='iso-8859-1') as csvfile:
-        reader = csv.reader(csvfile)
-        palavras = next(reader, None)
-        for mensagem in reader:
-            mensagens.append(mensagem)
-    mensagens = np.asarray(mensagens, dtype = np.dtype('uint32'))
-
-    '''
-
-    # ou gerar treino randomico, para testes
-    mensagens=np.random.randint(2, size=(10, 8))
-    mensagens[:,0] = np.random.randint(5,9,size=10)
-    palavras=('resposta','a', 'b', 'c', 'd', 'e', 'f', 'g')
-    '''
-
-    print('Arquivo csv:')
     print('mensagens: ', len(mensagens))
     print('palavras: ', len(palavras))
 
-    s = (mensagens[:,1:]==1).sum(axis=0)
-    print('soma: (quando valor = 1)')
-    print(s[:20])
     print('mensagens:')
     print(mensagens)
+    s = (mensagens[:,1:]==1).sum(axis=0)
+    print('soma: (a partir da segunda coluna, valores = 1)')
+    print(s[:20])
+    
+    ultimapass = timer()
 
     # dados do nó raiz
     #noDados = NoDados(indice, palavras, mensagens)
     noDados = NoDados(0, palavras, mensagens)
     filaDeNos.append(noDados)
     while True:
-        # vamos tentar usar uma pool para
-        # processar de uma vez
-        # todos os noDados disponíveis
-        pool = ThreadPool(4)
-        # pelas limitaçoes da máquina,
-        # quero processar no máximo n dados de nós de cada vez
-        n = 160
-        maxProcessos = min(n, len(filaDeNos))
-        filaDeNosParalelos = []
-        for i in range(maxProcessos):
-            filaDeNosParalelos.append(filaDeNos.pop(0))
-        filaDeNosProcessados = pool.map(calculaNo, filaDeNosParalelos)
-        pool.close()
-        pool.join()
-        if debug: print('Resultado do pool: ',  len(filaDeNosProcessados))
-        # vamos processar as filas
-        ## colocar o(s) nó(s) calculado(s) na árvore
-        for i in range(len(filaDeNosParalelos)):
-            noDados = filaDeNosParalelos.pop(0)
+        if paralelizar:
+            # vamos tentar usar uma pool para
+            # processamento paralelo dos dados dos nós.
+            pool = ThreadPool(4)
+            # pelas limitaçoes da máquina,
+            # quero processar no máximo n dados de nós de cada vez
+            n = 160
+            maxProcessos = min(n, len(filaDeNos))
+            filaDeNosParalelos = []
+            for i in range(maxProcessos):
+                filaDeNosParalelos.append(filaDeNos.pop(0))
+            filaDeNosProcessados = pool.map(calculaNo, filaDeNosParalelos)
+            pool.close()
+            pool.join()
+            if debug: print('Resultado do pool: ',  len(filaDeNosProcessados))
+            # vamos processar as filas
+            ## colocar o(s) nó(s) calculado(s) na árvore
+            for i in range(len(filaDeNosParalelos)):
+                noDados = filaDeNosParalelos.pop(0)
+                arvore[noDados.retIndice()] = No(noDados)
+                if debug: print('arvore recebe palavra: ', noDados.retPalavra())
+            # os dados de nós retornados que não forem folhas
+            # devem ser acrescentados à fila de dados de nós,
+            # caso contrário vão para a árvore
+            for i in range(len(filaDeNosProcessados)):
+                (noDadosEsq, noDadosDir) = filaDeNosProcessados.pop(0)
+                noDados = noDadosEsq
+                if noDados.eFolha():
+                    arvore[noDados.retIndice()] = No(noDados)
+                    if debug: print('arvore recebe folha')
+                else:
+                    filaDeNos.append(noDados)
+                noDados = noDadosDir
+                if noDados.eFolha():
+                    arvore[noDados.retIndice()] = No(noDados)
+                    if debug: print('arvore recebe folha')
+                else:
+                    filaDeNos.append(noDados)
+        else: # não parelelizar
+            noDados = filaDeNos.pop(0)
+            (noDadosEsq, noDadosDir) = calculaNo(noDados)
+            # coloca o nó processado na árvore
             arvore[noDados.retIndice()] = No(noDados)
-            if debug: print('arvore recebe palavra: ', noDados.retPalavra())
-        # os dados de nós retornados que não forem folhas
-        # devem ser acrescentados à fila de dados de nós,
-        # caso contrário vão para a árvore
-        for i in range(len(filaDeNosProcessados)):
-            (noDadosEsq, noDadosDir) = filaDeNosProcessados.pop(0)
             noDados = noDadosEsq
             if noDados.eFolha():
                 arvore[noDados.retIndice()] = No(noDados)
@@ -370,10 +428,50 @@ def main():
                 if debug: print('arvore recebe folha')
             else:
                 filaDeNos.append(noDados)
-        # se a fila de dados de nos estiver vazia encerra
+        # totalização da rodada
+        if (timer() - ultimapass) >= intervaloMostra:
+            usoMemoria = py.memory_info()[0]/2.**30  # memory use in GB...I think
+            fim = timer()
+            print('-'*79)
+            print('uso de memoria(GB):', usoMemoria)
+            print('Tempo ate agora: ', str(timedelta(seconds=fim - inicio)))
+            print('arvore: na memoria = ', len(arvore), ' total = ', len(arvore) + numNosPersistidos)
+            print('nos na fila: ', len(filaDeNos))
+            print('maior numero de linhas em um no na rodada: ', qmaxmens)
+            print('-'*79)
+            ultimapass = timer()
+            qmaxmens = 0
         if debug: print('Ao fim da repeticao temos para processar: ', len(filaDeNos))
+        # se a fila de dados de nos estiver vazia encerra
         if len(filaDeNos)==0:
+            usoMemoria = py.memory_info()[0]/2.**30  # memory use in GB...I think
+            fim = timer()
+            print('='*79)
+            print('Processamento encerrado!')
+            print('uso de memoria(GB):', usoMemoria)
+            print('Tempo de processamento: ', str(timedelta(seconds=fim - inicio)))
+            print('='*79)
             break
+        # se a arvore estiver muito grande,
+        # persiste parcialmente
+        # e junta apenas ao final
+        if len(arvore) > limitePersArv:
+            if debug: print('persistindo parcialmente a arvore.')
+            arvoresPers.append(salvarArvore(arvore))
+            numNosPersistidos += len(arvore)
+            arvore = {}
+
+    # caso a árvore tenha sido persistida em partes
+    # no momento, vamos deixar sem essa função ...
+    #if len(arvoresPers)>0:
+    #    print('reunindo arvore parcialmente persistida.')
+    #    for arq in arvoresPers:
+    #        arvcp = arvore.copy()
+    #        arvrec = CarregarArvore(arq)
+    #        arvore = {**arvcp, **arvrec}
+    #    fim = timer()
+    #    print('Tempo para reunir a arvore: ', str(timedelta(seconds=fim - inicio)))
+        
     if debug:
         #percorrer a arvore gerada
         print('Percorrendo a arvore gerada')
@@ -410,7 +508,9 @@ def main():
 
     salvarArvore(arvore)
     fim = timer()
-    print('tempo de execução (em segundos): ', fim - inicio) # Time in seconds, e.g. 5.3809195240028
+    print('#'*79)
+    print('Tempo de processamento: ', str(timedelta(seconds=fim - inicio)))
+    print('#'*79)
 
 if __name__ == "__main__":
     main()
