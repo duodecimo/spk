@@ -16,7 +16,9 @@ import pathlib
 #globais
 debug = False
 executarTeste = False
+tamTeste = [2000,300]
 paralelizar = False
+numMaxNosPar = 1000
 inicio = timer()
 pid = os.getpid()
 py = psutil.Process(pid)
@@ -314,6 +316,8 @@ def main():
     global limitePersArv
     global caminhoDePersistencia
     global intervaloMostra
+    global numMaxNosPar
+    global tamTeste
 
     # caminho para persistir a arvore
     caminhoDePersistencia = '../../arvorespklarmazenadas/grupo'
@@ -343,9 +347,13 @@ def main():
     
     if executarTeste:
         # gerar treino randomico, para testes
-        mensagens=np.random.randint(2, size=(10, 8))
-        mensagens[:,0] = np.random.randint(5,9,size=10)
-        palavras=('resposta','a', 'b', 'c', 'd', 'e', 'f', 'g')
+        # x, y = 40,20
+        mensagens=np.random.randint(2, size=(tamTeste[0], tamTeste[1]))
+        # primeira linha, palavras
+        mensagens[:,0] = np.random.randint(50, 900, size=tamTeste[0])
+        palavras=['resposta']
+        for i in range(np.size(mensagens, 0) -1):
+            palavras.append('pal' + str(i+1))
         print('Teste aleatório:')
     else:
         #ler o arquivo csv
@@ -378,9 +386,8 @@ def main():
             # processamento paralelo dos dados dos nós.
             pool = ThreadPool(4)
             # pelas limitaçoes da máquina,
-            # quero processar no máximo n dados de nós de cada vez
-            n = 160
-            maxProcessos = min(n, len(filaDeNos))
+            # quero processar no máximo numMaxNosPar  dados de nós de cada vez
+            maxProcessos = min(numMaxNosPar, len(filaDeNos))
             filaDeNosParalelos = []
             for i in range(maxProcessos):
                 filaDeNosParalelos.append(filaDeNos.pop(0))

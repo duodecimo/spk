@@ -81,4 +81,13 @@ print(np.size(a,0))
 comp = datetime.utcnow().strftime('%Y_%m_%d_%H_%M_%S_%f')[:-4] 
 print('arq_' + comp + '.pkl')
 
-#[ 0.   0.   0.   1.   1.5]
+x, y = 40,20
+mensagens=np.random.randint(2, size=(x, y))
+# primeira linha, palavras
+mensagens[:,0] = np.random.randint(50, 900, size=x)
+
+palavras=['resposta']
+for i in range(np.size(mensagens, 0) -1):
+    palavras.append('pal' + str(i+1))
+print(palavras[:20])
+print(mensagens)
