@@ -81,13 +81,34 @@ print(np.size(a,0))
 comp = datetime.utcnow().strftime('%Y_%m_%d_%H_%M_%S_%f')[:-4] 
 print('arq_' + comp + '.pkl')
 
-x, y = 40,20
+x, y = 200,20
 mensagens=np.random.randint(2, size=(x, y))
-# primeira linha, palavras
+# primeira linha, respostas
 mensagens[:,0] = np.random.randint(50, 900, size=x)
 
 palavras=['resposta']
-for i in range(np.size(mensagens, 0) -1):
+for i in range(np.size(mensagens, 1) -1):
     palavras.append('pal' + str(i+1))
-print(palavras[:20])
+print('palavras shape: ', np.shape(palavras))
+print(palavras)
+print('mensagens shape: ', np.shape(mensagens))
 print(mensagens)
+
+a = np.array([[1, 0, 0], [1, 0, 0], [2, 3, 4], [2, 5, 6]])
+print('print(a)')
+print(a)
+print('print(np.size(a,0))')
+print(np.size(a,0))
+print('print(np.size(a,1))')
+print(np.size(a,1))
+print('print(a[:,0])')
+print(a[:,0])
+print(np.unique(a[:,0]))
+print(np.unique(a[:,0]))
+print(np.unique(a[:,0], 1))
+a = np.array([[1, 0, 0], [1, 0, 2], [2, 3, 4]])
+print(a)
+print(np.unique(a[:,0]))
+print(np.unique(a[:,0], 0))
+print(np.unique(a[:,0], 1))
+

@@ -16,7 +16,7 @@ import pathlib
 #globais
 debug = False
 executarTeste = False
-tamTeste = [2000,300]
+tamTeste = [500,60]
 paralelizar = False
 numMaxNosPar = 1000
 inicio = timer()
@@ -27,6 +27,7 @@ limitePersArv = 100000
 caminhoDePersistencia = '.'
 # valor recomendado 5.0
 intervaloMostra = 5.0
+#intervaloMostra = 0.00005
 
 class NoDados(): # possui atributos para processar e gerar o no da arvore
     def __init__(self, indice, palavras, mensagens):
@@ -265,26 +266,36 @@ def calculaNo(noDados):
     # melhor usar a dimensão 0 (conta linhas)  de matriz para isso ...
 
     # vetor
+    # Returns the sorted unique elements of an array.
+    # There are three optional outputs in addition to the unique elements:
+    # the indices of the input array that give the unique values
+    # the indices of the unique array that reconstruct the input array
+    # the number of times each unique value comes up in the input array
     noDadosEsqResp = np.unique(mensagensPalAval[:,0])
     # a primeira coluna tem as respostas, as palavras começam a partir da segunda coluna
     # portanto, mensagens com uma unica resposta possuem pelo menos dois elementos
-    if np.size(noDadosEsqResp, 0) < 1 or np.size(mensagensPalAval, 0) <2 \
+    if np.size(noDadosEsqResp) < 2 or np.size(mensagensPalAval, 0) <2 \
         or np.size(mensagensPalAval, 1) <2:
-        # np.size(noDadosEsqResp, 0) e np.size(mensagensPalAval, 0)
-        #  numero de linhas na matriz
-        #  se for <1, não existem mais mensagens, é um nó folha!
-        # np.size(noDadosDirResp, 1) e np.size(mensagensPalAval, 1)
-        #  numero de colunas na matriz
-        #  a primeira coluna é a de respostas, portanto
+        # np.unique(mensagensPalAval[:,0] retorna um vetor com
+        # os elementos únicos da primeira coluna, portanto
+        # np.size(noDadosEsqResp) dá o número de elementos
+        # únicos na primeira coluna, ou sejam, respostas únicas
+        # e portanto np.size(noDadosEsqResp) < 2 indica uma ou
+        # nenhuma resposta, é folha!
+        #
+        # np.size(mensagensPalAval, 0) dá o número
+        #  de linhas na matriz:
+        #  se for <1, não existem mais mensagens, a serem classificadas,
+        # é um nó folha!
+        # np.size(mensagensPalAval, 1) dá o número de colunas
+        #  na matriz. a primeira coluna é a de respostas, logo
         #  o numero de palavras é o número de colunas -1.
         #  portanto, numero de colunas <2 significa
         #  que não restam mais palavras a processar:
         #  é uma folha!
-        #  caso tenha uma coluna, será a resposta.
-        #  caso não reste nenhuma coluna, será uma folha sem resposta.
         noDadosEsq.atribFolha(True)
         # sempre e só colocar respostas em nós folha
-        if np.size(noDadosEsqResp, 0) >1:
+        if np.size(noDadosEsqResp) > 0:
             noDadosEsq.insRespostas(noDadosEsqResp)
         else:
             # colocar as respotas do no pai
@@ -292,13 +303,11 @@ def calculaNo(noDados):
         if debug: print('folha com resposta(s) unica: ', noDadosEsqResp, ' a esquerda do no ', indice)
     # à direita
     noDadosDirResp = np.unique(mensagens_PalAval[:,0])
-    # a primeira coluna tem as respostas, as palavras começam a partir da segunda coluna
-    # portanto, mensagens com uma unica resposta possuem pelo menos dois elementos
-    if np.size(noDadosDirResp, 0) < 1 or np.size(mensagens_PalAval, 0) <2 \
+    if np.size(noDadosDirResp) < 2 or np.size(mensagens_PalAval, 0) <2 \
         or np.size(mensagens_PalAval, 1) <2:
         noDadosDir.atribFolha(True)
         # sempre e só colocar respostas em nós folha
-        if np.size(noDadosDirResp, 0) >1:
+        if np.size(noDadosDirResp) >0:
             noDadosDir.insRespostas(noDadosDirResp)
         else:
             # colocar as respotas do no pai
@@ -352,7 +361,7 @@ def main():
         # primeira linha, palavras
         mensagens[:,0] = np.random.randint(50, 900, size=tamTeste[0])
         palavras=['resposta']
-        for i in range(np.size(mensagens, 0) -1):
+        for i in range(np.size(mensagens, 1) -1):
             palavras.append('pal' + str(i+1))
         print('Teste aleatório:')
     else:
@@ -365,6 +374,7 @@ def main():
         mensagens = np.asarray(mensagens, dtype = np.dtype('uint32'))
         print('Arquivo csv:')
 
+    totMensO = len(mensagens)
     print('mensagens: ', len(mensagens))
     print('palavras: ', len(palavras))
 
@@ -380,6 +390,7 @@ def main():
     #noDados = NoDados(indice, palavras, mensagens)
     noDados = NoDados(0, palavras, mensagens)
     filaDeNos.append(noDados)
+    numFolhas = 0
     while True:
         if paralelizar:
             # vamos tentar usar uma pool para
@@ -409,12 +420,14 @@ def main():
                 noDados = noDadosEsq
                 if noDados.eFolha():
                     arvore[noDados.retIndice()] = No(noDados)
+                    numFolhas += 1
                     if debug: print('arvore recebe folha')
                 else:
                     filaDeNos.append(noDados)
                 noDados = noDadosDir
                 if noDados.eFolha():
                     arvore[noDados.retIndice()] = No(noDados)
+                    numFolhas += 1
                     if debug: print('arvore recebe folha')
                 else:
                     filaDeNos.append(noDados)
@@ -426,12 +439,14 @@ def main():
             noDados = noDadosEsq
             if noDados.eFolha():
                 arvore[noDados.retIndice()] = No(noDados)
+                numFolhas += 1
                 if debug: print('arvore recebe folha')
             else:
                 filaDeNos.append(noDados)
             noDados = noDadosDir
             if noDados.eFolha():
                 arvore[noDados.retIndice()] = No(noDados)
+                numFolhas += 1
                 if debug: print('arvore recebe folha')
             else:
                 filaDeNos.append(noDados)
@@ -443,6 +458,7 @@ def main():
             print('uso de memoria(GB):', usoMemoria)
             print('Tempo ate agora: ', str(timedelta(seconds=fim - inicio)))
             print('arvore: na memoria = ', len(arvore), ' total = ', len(arvore) + numNosPersistidos)
+            print('total de folhas: ', numFolhas, ' nós menos folhas: ', len(arvore) + numNosPersistidos - numFolhas)
             print('nos na fila: ', len(filaDeNos))
             print('maior numero de linhas em um no na rodada: ', qmaxmens)
             print('-'*79)
@@ -456,6 +472,9 @@ def main():
             print('='*79)
             print('Processamento encerrado!')
             print('uso de memoria(GB):', usoMemoria)
+            print('arvore: na memoria = ', len(arvore), ' total = ', len(arvore) + numNosPersistidos)
+            print('total de folhas: ', numFolhas, ' nós menos folhas: ', len(arvore) + numNosPersistidos - numFolhas)
+            print('total de mensagens em O: ', totMensO)
             print('Tempo de processamento: ', str(timedelta(seconds=fim - inicio)))
             print('='*79)
             break
@@ -495,23 +514,23 @@ def main():
             else:
                 print('  respostas: ', no.Respostas())
         #salvar arvore
-        nomeArq = salvarArvore(arvore)
-        print('arvore salva no arquivo: ', nomeArq)
+        #nomeArq = salvarArvore(arvore)
+        #print('arvore salva no arquivo: ', nomeArq)
         # ler arvore
-        arvore = CarregarArvore(nomeArq)
-        print('Percorrendo a arvore recuperada')
-        visitas = 0
-        proximo = [0]
-        while(len(proximo)>0):
-            ind = proximo.pop(0)
-            no = arvore.get(ind)
-            print('no: ', ind)
-            if not no.eFolha():
-                proximo.append(ind*2+1)
-                proximo.append(ind*2+2)
-                print('  palavra  : ', no.Palavra())
-            else:
-                print('  respostas: ', no.Respostas())
+        #arvore = CarregarArvore(nomeArq)
+        #print('Percorrendo a arvore recuperada')
+        #visitas = 0
+        #proximo = [0]
+        #while(len(proximo)>0):
+        #    ind = proximo.pop(0)
+        #    no = arvore.get(ind)
+        #    print('no: ', ind)
+        #    if not no.eFolha():
+        #        proximo.append(ind*2+1)
+        #        proximo.append(ind*2+2)
+        #        print('  palavra  : ', no.Palavra())
+        #    else:
+        #        print('  respostas: ', no.Respostas())
 
     salvarArvore(arvore)
     fim = timer()
