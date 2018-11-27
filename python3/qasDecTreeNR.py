@@ -14,8 +14,8 @@ from datetime import timedelta
 from multiprocessing.dummy import Pool as ThreadPool
 import pathlib
 #globais
-debug = False
-executarTeste = False
+debug = True
+executarTeste = True
 tamTeste = [500,60]
 paralelizar = False
 numMaxNosPar = 1000
@@ -28,7 +28,6 @@ limitePersArv = 100000
 caminhoDePersistencia = '.'
 # valor recomendado 5.0
 intervaloMostra = 5.0
-#intervaloMostra = 0.00005
 
 class NoDados(): # possui atributos para processar e gerar o no da arvore
     def __init__(self, indice, palavras, mensagens):
@@ -168,42 +167,69 @@ def calculaNo(noDados):
     if debug: print('GINI de O: ', giniO);
     # calculando o gini de cada palavra
     #  mensagens com cada palavra avaliada e qualquer resposta
-    vqMensPalAval = (mensagens[:,1:]==1).sum(axis=0)
+    vqMensPalAval = (mensagens[:,1:]==1.0).sum(axis=0, dtype=float)
     if debug: print('mensagens com cada palavra avaliada e qualquer resposta:')
     if debug: print(vqMensPalAval)
     # quantidade de mensagens com a resposta escolhida com cada palavra
-    vqMensRespEscPalAval = (respEscMensagens[:,1:]==1).sum(axis=0)
+    vqMensRespEscPalAval = (respEscMensagens[:,1:]==1.0).sum(axis=0, dtype=float)
     if debug: print('mensagens com cada palavra e a resposta escolhida:')
     if debug: print(vqMensRespEscPalAval)
     # taxa de mensagens com a palavra sendo analisada e a resposta escolhida
-    vtqMensRespEscPalAval = np.divide(vqMensRespEscPalAval, vqMensPalAval, out=np.zeros_like(vqMensRespEscPalAval), where=vqMensPalAval!=0, casting='unsafe')
+    #
+    # pode ser usado o método np.divide(), por exemplo:
+    #  comando a = np.array([-1, 0, 1, 2, 3], dtype=float)
+    #  resulta em a = [-1.  0.  1.  2.  3.]
+    #  comando b = np.array([ 0, 0, 0, 2, 2], dtype=float)
+    #  resulta em b = [ 0.  0.  0.  2.  2.]
+    #  então, comando c = np.divide(a, b, out=np.zeros_like(a), where=b!=0)
+    #  resulta em [ 0.   0.   0.   1.   1.5]
+    #
+    #  observe que comando c=a/b gera avisos:
+    #    RuntimeWarning: divide by zero encountered in true_divide
+    #    c=a/b
+    #    RuntimeWarning: invalid value encountered in true_divide
+    #    c=a/b
+    vtqMensRespEscPalAval = \
+    np.divide(vqMensRespEscPalAval, vqMensPalAval, out=np.zeros_like(vqMensRespEscPalAval), \
+    where=vqMensPalAval!=0.0, casting='unsafe')
     if debug: print('taxa de mensagens com cada palavra e a resposta escolhida:')
     if debug: print(vtqMensRespEscPalAval)
     # taxa de mensagens com a palavra sendo analisada e a resposta diferente da escolhida
     vqMens_RespEscPalAval = vqMensPalAval - vqMensRespEscPalAval
-    vtqMens_RespEscPalAval = np.divide(vqMens_RespEscPalAval, vqMensPalAval, out=np.zeros_like(vqMens_RespEscPalAval), where=vqMensPalAval!=0, casting='unsafe')
+    vtqMens_RespEscPalAval = \
+    np.divide(vqMens_RespEscPalAval, vqMensPalAval, out=np.zeros_like(vqMens_RespEscPalAval), \
+    where=vqMensPalAval!=0.0, casting='unsafe')
     if debug: print('taxa de mensagens com cada palavra e resposta diferente da escolhida:')
     if debug: print(vtqMens_RespEscPalAval)
     # gini das mensagens com cada palavra e com a resposta escolhida
     vGiniMensPalRespEsc = 1 - (pow(vtqMensRespEscPalAval, 2) + pow(vtqMens_RespEscPalAval, 2));
     # gini negativo não faz sentido, zera
+    # pode ser utilizado o método clip, exemplo:
+    # a: [-1.  2. -5.  9. -3.]
+    # a.clip(min=0)
+    # [ 0.  2.  0.  9.  0.]
+    # no entanto:
+    # a *= (a>0)
+    # [-0.  2. -0.  9. -0.]
     vGiniMensPalRespEsc = vGiniMensPalRespEsc.clip(min=0)
     if debug: print('gini das mensagens com cada palavra e com a resposta escolhida:')
     if debug: print(vGiniMensPalRespEsc)
 
     #  mensagens sem cada palavra avaliada e qualquer resposta
-    vqMens_PalAval = (mensagens[:,1:]==0).sum(axis=0)
+    vqMens_PalAval = (mensagens[:,1:]==0).sum(axis=0, dtype=float)
     # quantidade de mensagens com a resposta escolhida sem cada palavra
-    vqMensRespEsc_PalAval = (respEscMensagens[:,1:]==0).sum(axis=0)
+    vqMensRespEsc_PalAval = (respEscMensagens[:,1:]==0).sum(axis=0, dtype=float)
     if debug: print('mensagens com a resposta escolhida e sem cada palavra:')
     if debug: print(vqMensRespEsc_PalAval)
     # taxa de mensagens sem a palavra sendo analisada e com resposta escolhida
-    vtqMensRespEsc_PalAval = np.divide(vqMensRespEsc_PalAval, vqMens_PalAval, out=np.zeros_like(vqMensRespEsc_PalAval), where=vqMens_PalAval!=0, casting='unsafe')
+    vtqMensRespEsc_PalAval = np.divide(vqMensRespEsc_PalAval, vqMens_PalAval, \
+     out=np.zeros_like(vqMensRespEsc_PalAval), where=vqMens_PalAval!=0, casting='unsafe')
     if debug: print('taxa de mensagens com a resposta escolhida e sem cada palavra:')
     if debug: print(vtqMensRespEsc_PalAval)
     # taxa de mensagens sem cada palavra sendo avaliada e resposta diferente da escolhida
     vqMens_RespEsc_PalAval = vqMens_PalAval - vqMensRespEsc_PalAval
-    vtqMens_RespEsc_PalAval = np.divide(vqMens_RespEsc_PalAval, vqMens_PalAval, out=np.zeros_like(vqMens_RespEsc_PalAval), where=vqMens_PalAval!=0, casting='unsafe')
+    vtqMens_RespEsc_PalAval = np.divide(vqMens_RespEsc_PalAval, vqMens_PalAval, \
+     out=np.zeros_like(vqMens_RespEsc_PalAval), where=vqMens_PalAval!=0, casting='unsafe')
     if debug: print('taxa de mensagens sem cada palavra sendo avaliada e resposta diferente da escolhida:')
     if debug: print(vtqMens_RespEsc_PalAval)
     # gini das mensagens sem cada palavra sendo avaliada e sem a resposta escolhida
@@ -214,7 +240,8 @@ def calculaNo(noDados):
     if debug: print(vGiniMens_PalAval_RespEsc)
 
     # calculando o gini de cada palavra
-    vGiniPalAval = giniO - ((vGiniMensPalRespEsc * vqMensPalAval / qMens) + (vGiniMens_PalAval_RespEsc * vqMens_PalAval / qMens))
+    vGiniPalAval = giniO - ((vGiniMensPalRespEsc * vqMensPalAval / qMens) + \
+    (vGiniMens_PalAval_RespEsc * vqMens_PalAval / qMens))
     # gini negativo não faz sentido, zera
     vGiniPalAval = vGiniPalAval.clip(min=0)
     if debug: print('Gini de cada palavra avaliada:')
@@ -259,45 +286,67 @@ def calculaNo(noDados):
     palavrasProxNo = np.delete(palavras, [indPalEsc+1])
     if debug: print('palavras proximo no:')
     if debug: print(palavrasProxNo)
-    # inicia dados de nós de retorno
+    # inicia o calculo dos dados de nós ou folhas
+    # à esquerda e a direata que serão retornados.
+
     # NoDados(indice, palavras, mensagens)
     noDadosEsq = NoDados(indice*2+1, palavrasProxNo, mensagensPalAval)
     noDadosDir = NoDados(indice*2+2, palavrasProxNo, mensagens_PalAval)
     # verifica a expansão da árvore:
     # caso não hajam mais mensagens, ou caso só fique uma resposta,
     # para de expandir
+    
     # à esquerda
     
     # primeiro preciso verificar se há menos que duas respostas,
     # melhor agrupar os dados pelas respostas (primeira coluna) 
     # e verificar se há menos de duas linhas, caso sim,
     # é folha!
+    # a razão é haver consenso com relação à resposta.
+
     # segundo preciso verificar o numero de linhas de mensagens,
     # se houver menos que duas mensagens é folha!
-    # melhor usar a dimensão 0 (conta linhas)  de matriz para isso ...
+    # melhor usar a dimensão 0 (conta linhas)  de matriz para isso.
+    # a razão é que não é possível prossseguir dividindo,
+    # existe consenso para a resposta.
 
-    # vetor
-    # Returns the sorted unique elements of an array.
-    # There are three optional outputs in addition to the unique elements:
-    # the indices of the input array that give the unique values
-    # the indices of the unique array that reconstruct the input array
-    # the number of times each unique value comes up in the input array
+    # np.unique(), pode resulta em um vetor:
+    #  exemplo:
+    #  a = [[1 0 0]
+    #       [1 0 0]
+    #       [2 3 4]]
+    #   então,
+    #   a[:,0] = [1 1 2]
+    #   np.unique(a[:,0]) = [1 2]
+    #   np.size(np.unique(a[:,0])) = 2
+
+    # np.unique(mensagensPalAval[:,0] retorna um vetor com
+    # os elementos únicos da primeira coluna, as respostas
     noDadosEsqResp = np.unique(mensagensPalAval[:,0])
-    # a primeira coluna tem as respostas, as palavras começam a partir da segunda coluna
-    # portanto, mensagens com uma unica resposta possuem pelo menos dois elementos
+    # np.size(), resulta em um inteiro:
+    # exemplo com matriz:
+    # a = [[1 2 3]
+    #      [4 5 6]]
+    #  então
+    #  np.size(a) =  6
+    #  np.size(a,0)) =  2 (numero de linhas)
+    #  np.size(a,1)) =  3 (numero de colunas)
+    # exemplo com vetor:
+    # a = [1 2 3]
+    #  então
+    #  np.size(a) =  3
+    #  np.size(a,0)) =  3
+    #  np.size(a,1)) = IndexError: tuple index out of range
     if np.size(noDadosEsqResp) < 2 or np.size(mensagensPalAval, 0) <2 \
         or np.size(mensagensPalAval, 1) <2:
-        # np.unique(mensagensPalAval[:,0] retorna um vetor com
-        # os elementos únicos da primeira coluna, portanto
-        # np.size(noDadosEsqResp) dá o número de elementos
-        # únicos na primeira coluna, ou sejam, respostas únicas
-        # e portanto np.size(noDadosEsqResp) < 2 indica uma ou
-        # nenhuma resposta, é folha!
+        # np.size(noDadosEsqResp) dá o número de respostas.
+        #  Se o resultado é menor que 2, indica uma ou
+        #  nenhuma resposta: é folha!
         #
         # np.size(mensagensPalAval, 0) dá o número
-        #  de linhas na matriz:
-        #  se for <1, não existem mais mensagens, a serem classificadas,
-        # é um nó folha!
+        #  de linhas: se for <2, não existem mais mensagens,
+        #  ou existe apenas uma mensagem: é um nó folha!
+        #
         # np.size(mensagensPalAval, 1) dá o número de colunas
         #  na matriz. a primeira coluna é a de respostas, logo
         #  o numero de palavras é o número de colunas -1.
@@ -305,27 +354,36 @@ def calculaNo(noDados):
         #  que não restam mais palavras a processar:
         #  é uma folha!
         noDadosEsq.atribFolha(True)
-        # sempre e só colocar respostas em nós folha
+        # colocamos as respostas na folha (e somente nelas)
+        # vão ser sempre vetores, no caso ideal, com apenas
+        # um valor.
         if np.size(noDadosEsqResp) > 0:
             noDadosEsq.insRespostas(noDadosEsqResp)
+            if debug: print('folha com resposta(s): ', noDadosEsqResp, \
+            ' a esquerda do no ', indice)
         else:
-            # colocar as respotas do no pai
+            # o ideal é quando a folha tem uma resposta,
+            # mas, se não tiver:
+            # colocamos as respotas do no pai
             noDadosEsq.insRespostas(np.unique(mensagens[:,0]))
-        if debug: print('folha com resposta(s) unica: ', noDadosEsqResp, ' a esquerda do no ', indice)
+            if debug: print('folha com resposta(s) (do pai): ', \
+            np.unique(mensagens[:,0]), ' a esquerda do no ', indice)
     # à direita
+    # (obs.: as explicações são as mesmas dadas acima
+    # para o processamento de expansão à esquerda).
     noDadosDirResp = np.unique(mensagens_PalAval[:,0])
     if np.size(noDadosDirResp) < 2 or np.size(mensagens_PalAval, 0) <2 \
         or np.size(mensagens_PalAval, 1) <2:
         noDadosDir.atribFolha(True)
-        # sempre e só colocar respostas em nós folha
         if np.size(noDadosDirResp) >0:
             noDadosDir.insRespostas(noDadosDirResp)
+            if debug: print('folha com resposta(s): ', \
+            noDadosDirResp, ' a direita do no ', indice)
         else:
-            # colocar as mesmas respotas do no pai
             noDadosDir.insRespostas(np.unique(mensagens[:,0]))
-        if debug: print('folha com resposta(s): ', noDadosDirResp, ' a direita do no ', indice)
-    return (noDadosEsq, noDadosDir)  
-
+            if debug: print('folha com resposta(s) (do pai): ', \
+            np.unique(mensagens[:,0]), ' a direita do no ', indice)
+    return (noDadosEsq, noDadosDir)
 
 def main():
     global executarTeste
@@ -366,6 +424,7 @@ def main():
 
     
     if executarTeste:
+        intervaloMostra = 0.00005
         # gerar treino randomico, para testes
         # x, y = 40,20
         mensagens=np.random.randint(2, size=(tamTeste[0], tamTeste[1]))
@@ -374,6 +433,8 @@ def main():
         palavras=['resposta']
         for i in range(np.size(mensagens, 1) -1):
             palavras.append('pal' + str(i+1))
+        # muito importante
+        mensagens = mensagens.astype(float)
         print('Teste aleatório:')
     else:
         #ler o arquivo csv
@@ -391,7 +452,7 @@ def main():
 
     print('mensagens:')
     print(mensagens)
-    s = (mensagens[:,1:]==1).sum(axis=0)
+    s = (mensagens[:,1:]==1).sum(axis=0, dtype=float)
     print('soma: (a partir da segunda coluna, valores = 1)')
     print(s[:20])
     
@@ -454,23 +515,29 @@ def main():
             np.size(noDadosEsq.retMensagens(), 0) + np.size(noDadosDir.retMensagens(), 0)
             # coloca o nó processado na árvore
             arvore[noDados.retIndice()] = No(noDados)
-            numNos += 1
-            noDados = noDadosEsq
+            # na verdade, pode ser um nó ou folha!
             if noDados.eFolha():
-                arvore[noDados.retIndice()] = No(noDados)
-                numFolhas += 1
+                numFolhas +=1
                 numMensFolhas += np.size(noDados.retMensagens(), 0)
-                if debug: print('arvore recebe folha')
             else:
-                filaDeNos.append(noDados)
-            noDados = noDadosDir
-            if noDados.eFolha():
-                arvore[noDados.retIndice()] = No(noDados)
-                numFolhas += 1
-                numMensFolhas += np.size(noDados.retMensagens(), 0)
-                if debug: print('arvore recebe folha')
-            else:
-                filaDeNos.append(noDados)
+                numNos += 1
+                # se é nó, processa filhos
+                noDados = noDadosEsq
+                if noDados.eFolha():
+                    arvore[noDados.retIndice()] = No(noDados)
+                    numFolhas += 1
+                    numMensFolhas += np.size(noDados.retMensagens(), 0)
+                    if debug: print('arvore recebe folha')
+                else:
+                    filaDeNos.append(noDados)
+                noDados = noDadosDir
+                if noDados.eFolha():
+                    arvore[noDados.retIndice()] = No(noDados)
+                    numFolhas += 1
+                    numMensFolhas += np.size(noDados.retMensagens(), 0)
+                    if debug: print('arvore recebe folha')
+                else:
+                    filaDeNos.append(noDados)
             if not len(arvore) == numNos+numFolhas:
                 print('largura da arvore: ', len(arvore))
                 print('numero de nós: ', numNos)
