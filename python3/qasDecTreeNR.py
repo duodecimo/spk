@@ -23,6 +23,7 @@ inicio = timer()
 pid = os.getpid()
 py = psutil.Process(pid)
 qmaxmens = 0
+qtotmenscalc = 0
 limitePersArv = 100000
 caminhoDePersistencia = '.'
 # valor recomendado 5.0
@@ -120,6 +121,7 @@ def calculaNo(noDados):
     global debug
     global py
     global qmaxmens
+    global qtotmenscalc
 
     indice = noDados.retIndice()
     palavras = noDados.retPalavras();
@@ -232,9 +234,6 @@ def calculaNo(noDados):
     if debug: print('Melhor palavra: ', PalEsc, ' indice: ', indPalEsc +1)
     if debug: print('conferindo palavra do no: ', noDados.retPalavra())
     # dividir as mensagens entre as que contém a palavra com melhor GINI e as que não.
-    #TODO   File "qasDecTreeNR.py", line 212, in calculaNo
-    #mensagensPalAval = mensagens[mensagens[:, indPalEsc+1]==1]
-    #IndexError: index 1 is out of bounds for axis 1 with size 1
     mensagensPalAval = mensagens[mensagens[:, indPalEsc+1]==1]
     mensagens_PalAval = mensagens[mensagens[:, indPalEsc+1]==0]
     if debug: print('mensagens que contém a melhor palavra:')
@@ -244,6 +243,18 @@ def calculaNo(noDados):
     # remove a palavra dos novos conjuntos de mensagens (esquerdo e direito)
     mensagensPalAval = np.delete(mensagensPalAval, [indPalEsc+1], axis=1)
     mensagens_PalAval = np.delete(mensagens_PalAval, [indPalEsc+1], axis=1)
+    # é preciso verificar a invariância das mensagens:
+    # comparemos as quantidades de linhas
+    if not np.size(mensagens, 0) == np.size(mensagensPalAval, 0) + np.size(mensagens_PalAval, 0):
+        print('*'*79)
+        print('-'*79)
+        print('Erro de invariância no nó ', noDados.retIndice())
+        print('pai: ', np.size(mensagens, 0))
+        print('esq: ', np.size(mensagensPalAval, 0))
+        print('dir: ', np.size(mensagens_PalAval, 0))
+        print('*'*79)
+        print('-'*79)
+        raise  ErroDeInvariancia('Divisão de dados com falha!')
     # ajusta a lista de palavras para os nós filhos (esquerdo e direito)
     palavrasProxNo = np.delete(palavras, [indPalEsc+1])
     if debug: print('palavras proximo no:')
@@ -310,7 +321,7 @@ def calculaNo(noDados):
         if np.size(noDadosDirResp) >0:
             noDadosDir.insRespostas(noDadosDirResp)
         else:
-            # colocar as respotas do no pai
+            # colocar as mesmas respotas do no pai
             noDadosDir.insRespostas(np.unique(mensagens[:,0]))
         if debug: print('folha com resposta(s): ', noDadosDirResp, ' a direita do no ', indice)
     return (noDadosEsq, noDadosDir)  
@@ -390,7 +401,9 @@ def main():
     #noDados = NoDados(indice, palavras, mensagens)
     noDados = NoDados(0, palavras, mensagens)
     filaDeNos.append(noDados)
+    numNos = 0
     numFolhas = 0
+    numMensFolhas = 0
     while True:
         if paralelizar:
             # vamos tentar usar uma pool para
@@ -411,6 +424,7 @@ def main():
             for i in range(len(filaDeNosParalelos)):
                 noDados = filaDeNosParalelos.pop(0)
                 arvore[noDados.retIndice()] = No(noDados)
+                numNos += 1
                 if debug: print('arvore recebe palavra: ', noDados.retPalavra())
             # os dados de nós retornados que não forem folhas
             # devem ser acrescentados à fila de dados de nós,
@@ -434,12 +448,18 @@ def main():
         else: # não parelelizar
             noDados = filaDeNos.pop(0)
             (noDadosEsq, noDadosDir) = calculaNo(noDados)
+            # podemos mais uma vez verificar a invariancia
+            # dos dados
+            assert np.size(noDados.retMensagens(), 0) == \
+            np.size(noDadosEsq.retMensagens(), 0) + np.size(noDadosDir.retMensagens(), 0)
             # coloca o nó processado na árvore
             arvore[noDados.retIndice()] = No(noDados)
+            numNos += 1
             noDados = noDadosEsq
             if noDados.eFolha():
                 arvore[noDados.retIndice()] = No(noDados)
                 numFolhas += 1
+                numMensFolhas += np.size(noDados.retMensagens(), 0)
                 if debug: print('arvore recebe folha')
             else:
                 filaDeNos.append(noDados)
@@ -447,9 +467,16 @@ def main():
             if noDados.eFolha():
                 arvore[noDados.retIndice()] = No(noDados)
                 numFolhas += 1
+                numMensFolhas += np.size(noDados.retMensagens(), 0)
                 if debug: print('arvore recebe folha')
             else:
                 filaDeNos.append(noDados)
+            if not len(arvore) == numNos+numFolhas:
+                print('largura da arvore: ', len(arvore))
+                print('numero de nós: ', numNos)
+                print('numero de folhas: ', numFolhas)
+                raise ErroDeInvariancia('tamanho da arvore incompatível!')
+                #TODO programa interrompido aquí, 26/Nov/2018
         # totalização da rodada
         if (timer() - ultimapass) >= intervaloMostra:
             usoMemoria = py.memory_info()[0]/2.**30  # memory use in GB...I think
@@ -457,8 +484,10 @@ def main():
             print('-'*79)
             print('uso de memoria(GB):', usoMemoria)
             print('Tempo ate agora: ', str(timedelta(seconds=fim - inicio)))
-            print('arvore: na memoria = ', len(arvore), ' total = ', len(arvore) + numNosPersistidos)
-            print('total de folhas: ', numFolhas, ' nós menos folhas: ', len(arvore) + numNosPersistidos - numFolhas)
+            print('total de nós : ', numNos)
+            print('total de folhas: ', numFolhas, ' consumiram ', numMensFolhas, 'mensagens')
+            print('mensagens a consumir: ', totMensO, ' mensagens', 'invariancia: ', totMensO - numMensFolhas)
+            print('total na arvore : ', numNos + numFolhas)
             print('nos na fila: ', len(filaDeNos))
             print('maior numero de linhas em um no na rodada: ', qmaxmens)
             print('-'*79)
@@ -472,8 +501,9 @@ def main():
             print('='*79)
             print('Processamento encerrado!')
             print('uso de memoria(GB):', usoMemoria)
-            print('arvore: na memoria = ', len(arvore), ' total = ', len(arvore) + numNosPersistidos)
-            print('total de folhas: ', numFolhas, ' nós menos folhas: ', len(arvore) + numNosPersistidos - numFolhas)
+            print('total de nós : ', numNos)
+            print('total de folhas: ', numFolhas)
+            print('total na árvore: ', numNos + numFolhas)
             print('total de mensagens em O: ', totMensO)
             print('Tempo de processamento: ', str(timedelta(seconds=fim - inicio)))
             print('='*79)
