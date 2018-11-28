@@ -14,8 +14,8 @@ from datetime import timedelta
 from multiprocessing.dummy import Pool as ThreadPool
 import pathlib
 #globais
-debug = True
-executarTeste = True
+debug = False
+executarTeste = False
 tamTeste = [500,60]
 paralelizar = False
 numMaxNosPar = 1000
