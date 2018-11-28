@@ -16,6 +16,7 @@ import pathlib
 #globais
 debug = False
 executarTeste = False
+particionar = True
 tamTeste = [500,60]
 paralelizar = False
 numMaxNosPar = 1000
@@ -27,7 +28,7 @@ qtotmenscalc = 0
 limitePersArv = 100000
 caminhoDePersistencia = '.'
 # valor recomendado 5.0
-intervaloMostra = 5.0
+intervaloMostra = 30.0
 
 class NoDados(): # possui atributos para processar e gerar o no da arvore
     def __init__(self, indice, palavras, mensagens):
@@ -419,9 +420,12 @@ def main():
     # indice esquerda = 2* indice atual + 1
     # indice direita = 2* indice atual + 2
 
-    # conjunto de treino
+    # conjunto de mensagens
     mensagens = []
-
+    # conjunto de treino
+    treinos = []
+    # conjunto de testes
+    testes = []
     
     if executarTeste:
         intervaloMostra = 0.00005
@@ -446,21 +450,39 @@ def main():
         mensagens = np.asarray(mensagens, dtype = np.dtype('uint32'))
         print('Arquivo csv:')
 
-    totMensO = len(mensagens)
-    print('mensagens: ', len(mensagens))
+    if particionar:
+        # para particionar matriz
+        # treinos = 90%
+        # testes = 10%
+        np.random.shuffle(mensagens)
+        l = mensagens.shape[0]
+        treinos, testes = mensagens[: int(l * .9)], mensagens[int(l * .9) :]
+        print('>'*79)
+        print('Mensagens (', mensagens.shape, ') particionadas.')
+        print(' treinos(', treinos.shape, ') e testes(', testes.shape, ')')
+        print('>'*79)
+        # neste caso é recomendável salvar o treino para posterior execução
+    else:
+        # se não, usa os mesmos dados
+        # para treino e teste
+        # aceitando overfiting
+        treinos = testes = mensagens
+
+    totMensO = len(treinos)
+    print('mensagens: ', len(treinos))
     print('palavras: ', len(palavras))
 
     print('mensagens:')
-    print(mensagens)
-    s = (mensagens[:,1:]==1).sum(axis=0, dtype=float)
+    print(treinos)
+    s = (treinos[:,1:]==1).sum(axis=0, dtype=float)
     print('soma: (a partir da segunda coluna, valores = 1)')
     print(s[:20])
-    
+
     ultimapass = timer()
 
     # dados do nó raiz
-    #noDados = NoDados(indice, palavras, mensagens)
-    noDados = NoDados(0, palavras, mensagens)
+    #noDados = NoDados(indice, palavras, treinos)
+    noDados = NoDados(0, palavras, treinos)
     filaDeNos.append(noDados)
     numNos = 0
     numFolhas = 0
@@ -595,43 +617,60 @@ def main():
     #    fim = timer()
     #    print('Tempo para reunir a arvore: ', str(timedelta(seconds=fim - inicio)))
         
-    if debug:
-        #percorrer a arvore gerada
-        print('Percorrendo a arvore gerada')
-        visitas = 0
+    # salvar a arvore
+    salvarArvore(arvore)
+    # ler arvore
+    #arvore = CarregarArvore(caminhoDePersistencia)
+    print('arvore carregada, tamanho: ', len(arvore))
+    acertos = 0
+    erros = 0
+    testadas = 0
+    # quantidade de mensagens a testar
+    qMensTeste = np.size(testes, 0)
+    print('mensagens no conjunto de mensagens: ', qMensTeste)
+    for i in range(qMensTeste):
+        mensagem = testes[i]
+        #pesquisar a arvore gerada iniciando pela raiz
         proximo = [0]
         while(len(proximo)>0):
             ind = proximo.pop(0)
             no = arvore.get(ind)
-            print('no: ', ind)
+            if debug: print('no: ', ind)
             if not no.eFolha():
-                proximo.append(ind*2+1)
-                proximo.append(ind*2+2)
-                print('  palavra  : ', no.Palavra())
+                # verifica se a mensagem tem a
+                # palavra da arvore ou não.
+                palNo = no.Palavra()
+                if mensagem[palavras.index(palNo)] == 1:
+                    # mensagem tem a palavra
+                    # vai para a esquerda
+                    proximo.append(ind*2+1)
+                else:
+                    # mensagem não tem a palavra
+                    # vai para a direita
+                    proximo.append(ind*2+2)
             else:
-                print('  respostas: ', no.Respostas())
-        #salvar arvore
-        #nomeArq = salvarArvore(arvore)
-        #print('arvore salva no arquivo: ', nomeArq)
-        # ler arvore
-        #arvore = CarregarArvore(nomeArq)
-        #print('Percorrendo a arvore recuperada')
-        #visitas = 0
-        #proximo = [0]
-        #while(len(proximo)>0):
-        #    ind = proximo.pop(0)
-        #    no = arvore.get(ind)
-        #    print('no: ', ind)
-        #    if not no.eFolha():
-        #        proximo.append(ind*2+1)
-        #        proximo.append(ind*2+2)
-        #        print('  palavra  : ', no.Palavra())
-        #    else:
-        #        print('  respostas: ', no.Respostas())
+                # hora da decisão
+                if mensagem[0] == no.Respostas()[0]:
+                    acertos +=1
+                else:
+                    erros += 1
+                testadas += 1
+                if debug: print('testadas: ', testadas, ' acertos: ', acertos, ' erros:', erros)
+                if debug: print('acuidade: ', acertos*100/testadas)
+                # parte para a proxima pesquisa
 
-    salvarArvore(arvore)
+    # em 28/11/2018
+    # usando para teste o mesmo arquivo usado para treino:
+    # testadas:  11719  acertos:  11717  erros: 2
+    # acuidade:  99.98293369741445
+    # ###############################################################################
+    # Tempo de processamento:  0:01:07.919263
+    # ###############################################################################
+
     fim = timer()
     print('#'*79)
+    print('testadas: ', testadas, ' acertos: ', acertos, ' erros:', erros)
+    print('acuidade: ', acertos*100/testadas)
     print('Tempo de processamento: ', str(timedelta(seconds=fim - inicio)))
     print('#'*79)
 

@@ -60,8 +60,10 @@ def main():
     global numMaxNosPar
     global tamTeste
 
-    # conjunto de treino
+    # conjunto de mensagens
     mensagens = []
+    # conjunto de treino
+    treino = []
     # conjunto de testes
     testes = []
     
@@ -75,8 +77,6 @@ def main():
         palavras=['resposta']
         for i in range(np.size(mensagens, 1) -1):
             palavras.append('pal' + str(i+1))
-        # muito importante
-        mensagens = mensagens.astype(float)
         print('Teste aleatório:')
     else:
         #ler o arquivo csv
@@ -87,6 +87,14 @@ def main():
                 mensagens.append(mensagem)
         mensagens = np.asarray(mensagens, dtype = np.dtype('uint32'))
         print('Arquivo csv:')
+
+    # para particionar matriz
+    # treino = 90%
+    # teste = 10%
+    np.random.shuffle(a)
+    l = mensagens.shape[0]
+    # b, c, d = a[: int(l * .6)], a[int(l * .6) : int(l * .8)], a[int(l * .8):]
+    treino, teste = mensagens[: int(l * .9)], mensagens[int(l * .9) :]
 
     totMensO = len(mensagens)
     print('mensagens: ', len(mensagens))
@@ -100,22 +108,22 @@ def main():
     
     # caminho para recuperar a arvore
     #cole o arquivo aqui
-    caminhoDePersistencia = '../../arvorespklarmazenadas/' + ''
+    caminhoDePersistencia = '/extra2/mySpark/javaNetbeans/arvorespklarmazenadas/grupo2018_11_27_12_22_12_87/' \
+     + 'arvore_2018_11_27_12_24_08_2580.pkl'
 
     # ler arvore
-    arvore = CarregarArvore(nomeArq)
+    arvore = CarregarArvore(caminhoDePersistencia)
     print('arvore carregada, tamanho: ', len(arvore))
     acertos = 0
     erros = 0
     testadas = 0
     # quantidade de mensagens a testar
-    qMensTeste = np.size(mensagens, 1)
-    print('Mensagens a testar: ', qMensTeste)
-    visitas = 0
-    proximo = [0]
+    qMensTeste = np.size(mensagens, 0)
+    print('mensagens no conjunto de mensagens: ', qMensTeste)
     for i in range(qMensTeste):
         mensagem = mensagens[i]
         #pesquisar a arvore gerada iniciando pela raiz
+        proximo = [0]
         while(len(proximo)>0):
             ind = proximo.pop(0)
             no = arvore.get(ind)
@@ -123,9 +131,8 @@ def main():
             if not no.eFolha():
                 # verifica se a mensagem tem a
                 # palavra da arvore ou não.
-                palNo = arvore.Palavra()
-                id = palavras(palNo)
-                if mensagem[id] == 1:
+                palNo = no.Palavra()
+                if mensagem[palavras.index(palNo)] == 1:
                     # mensagem tem a palavra
                     # vai para a esquerda
                     proximo.append(ind*2+1)
@@ -135,14 +142,23 @@ def main():
                     proximo.append(ind*2+2)
             else:
                 # hora da decisão
-                if mensagem[0] == no.Respostas[0]:
+                if mensagem[0] == no.Respostas()[0]:
                     acertos +=1
                 else:
                     erros += 1
                 testadas += 1
                 print('testadas: ', testadas, ' acertos: ', acertos, ' erros:', erros)
-                print('acuidade: ', acerto*100/testadas)
+                print('acuidade: ', acertos*100/testadas)
                 # parte para a proxima pesquisa
+
+    # em 28/11/2018
+    # usando para teste o mesmo arquivo usado para treino:
+    # testadas:  11719  acertos:  11717  erros: 2
+    # acuidade:  99.98293369741445
+    # ###############################################################################
+    # Tempo de processamento:  0:01:07.919263
+    # ###############################################################################
+
     fim = timer()
     print('#'*79)
     print('Tempo de processamento: ', str(timedelta(seconds=fim - inicio)))
