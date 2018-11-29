@@ -1,5 +1,6 @@
 #!/bin/python
-
+import sys
+sys.path.append('/home/duo/anaconda3/lib/python3.6/site-packages')
 import numpy as np
 
 print("Alo, python!")

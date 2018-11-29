@@ -1,34 +1,71 @@
 #!/bin/python
 
+#modulos
+
 import numpy as np
 import os
 import csv
 from timeit import default_timer as timer
-import os
 import psutil
-import sys
 import pickle
 import itertools
 from datetime import datetime
 from datetime import timedelta
 from multiprocessing.dummy import Pool as ThreadPool
 import pathlib
+
 #globais
+
+# se verdadeiro o programa escreve
+# várias mensagens. Deve ser usado
+# apenas para testes
 debug = False
+# utiliza dados randomicos
+# ao invés de reais.
 executarTeste = False
-particionar = True
+# define as dimensões da
+# matriz de teste
 tamTeste = [500,60]
+# se verdadeiro o programa embaralha
+# e divide o arquivo de dados em
+# treino (90%) e teste(10%),
+# caso contrário usa todos os dados
+# tanto para treino como para teste.
+# normalmente isso causa overfiting.
+particionar = True
+# se verdadeiro a expansão da árvore
+# é paralelizada
 paralelizar = False
+# máximo de nós a paralelizar
+# a cada pool
 numMaxNosPar = 1000
+
+# inicialização dos processos do programa
+
 inicio = timer()
 pid = os.getpid()
 py = psutil.Process(pid)
+# para acompanhar o maior número de mensagens
+# processadas em uma rodada de expansão da árvore.
 qmaxmens = 0
+# para acompanhar quantas mensagens
+# já foram processadas
 qtotmenscalc = 0
+# caso a árvore fique muito grande,
+# pode ser parcialmente persistida,
+# liberando memória para rodar o programa.
 limitePersArv = 100000
+# pasta para salvar as árvores obtidas,
+# o ideal é ficar pelo menos um nível
+# de pasta anterior ao git.
 caminhoDePersistencia = '.'
+# de quanto em quanto tempo
+# o progresso do processamento
+# é relatado.
 # valor recomendado 5.0
 intervaloMostra = 30.0
+
+# classes
 
 class NoDados(): # possui atributos para processar e gerar o no da arvore
     def __init__(self, indice, palavras, mensagens):
@@ -72,20 +109,7 @@ class No(): # é o objeto do dicionário árvore
     def eFolha(self):
         return self.folha
 
-def ProcessadorDeNosDados():
-    def __init__(self, noDados):
-        self.noDados = noDados
-    def tarefaDeCalcular(self):
-        global arvore
-        global filaDeNos
-        # Processa o noDados
-        (noDadosEsq, noDadosDir) = calculaNo(noDados)
-        # coloca na fila de nós a calcular
-        filaDeNos.append(noDadosEsq)
-        filaDeNos.append(noDadosDir)
-        # coloca o nó calculado na árvore
-        arvore[noDados.retIndice()] = No(noDados)      
-
+# métodos auxiliares
 
 def dividir(x, y):
     if y==0: return 0
@@ -114,7 +138,6 @@ def dividirArvore(arvore):
     arvore2 = dict(i)                        # grab the rest
 
     return arvore1, arvore2
-
 
 def calculaNo(noDados):
     global inicio
@@ -282,7 +305,7 @@ def calculaNo(noDados):
         print('dir: ', np.size(mensagens_PalAval, 0))
         print('*'*79)
         print('-'*79)
-        raise  ErroDeInvariancia('Divisão de dados com falha!')
+        raise  Exception('Divisão de dados com falha!')
     # ajusta a lista de palavras para os nós filhos (esquerdo e direito)
     palavrasProxNo = np.delete(palavras, [indPalEsc+1])
     if debug: print('palavras proximo no:')
@@ -386,7 +409,12 @@ def calculaNo(noDados):
             np.unique(mensagens[:,0]), ' a direita do no ', indice)
     return (noDadosEsq, noDadosDir)
 
+# método principal
+
 def main():
+    
+    # globais
+
     global executarTeste
     global debug
     global inicio
@@ -428,6 +456,8 @@ def main():
     testes = []
     
     if executarTeste:
+        # será gerado um conjunto de dados alatório
+        # que serve apenas para testar o código.
         intervaloMostra = 0.00005
         # gerar treino randomico, para testes
         # x, y = 40,20
@@ -564,7 +594,7 @@ def main():
                 print('largura da arvore: ', len(arvore))
                 print('numero de nós: ', numNos)
                 print('numero de folhas: ', numFolhas)
-                raise ErroDeInvariancia('tamanho da arvore incompatível!')
+                raise Exception('tamanho da arvore incompatível!')
                 #TODO programa interrompido aquí, 26/Nov/2018
         # totalização da rodada
         if (timer() - ultimapass) >= intervaloMostra:
