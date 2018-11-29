@@ -2,6 +2,7 @@
 
 #modulos
 
+import qasmod
 import numpy as np
 import os
 import csv
@@ -20,9 +21,9 @@ import pathlib
 # várias mensagens. Deve ser usado
 # apenas para testes
 debug = False
-# utiliza dados randomicos
+# utiliza dados randômicos
 # ao invés de reais.
-executarTeste = False
+executarTeste = True
 # define as dimensões da
 # matriz de teste
 tamTeste = [500,60]
@@ -38,7 +39,7 @@ particionar = True
 paralelizar = False
 # máximo de nós a paralelizar
 # a cada pool
-numMaxNosPar = 1000
+numMaxnosPar = 1000
 
 # inicialização dos processos do programa
 
@@ -65,49 +66,7 @@ caminhoDePersistencia = '.'
 # valor recomendado 5.0
 intervaloMostra = 30.0
 
-# classes
 
-class NoDados(): # possui atributos para processar e gerar o no da arvore
-    def __init__(self, indice, palavras, mensagens):
-        self.indice = indice # vai ser o indice do dicionario arvore
-        self.palavra = None # a melhor palavra que divide os nós
-        self.respostas = None # uma lista de respostas, para os nós folha, idealmente apenas uma resposta
-        self.mensagens = mensagens # matriz de mensagens a serem processadas
-        self.palavras = palavras # vetor de palavras a serem processadas
-        self.folha = False # indica se um nó é ou não folha
-
-    def retIndice(self):
-        return self.indice
-    def insPalavra(self, palavra):
-        self.palavra = palavra
-    def retPalavra(self):
-        return self.palavra
-    def insRespostas(self, respostas):
-        self.respostas = respostas
-    def retRespostas(self):
-        return self.respostas
-    def insMensagens(self, mensagens):
-        self.mensagens = mensagens
-    def retMensagens(self):
-        return self.mensagens
-    def retPalavras(self):
-        return self.palavras
-    def atribFolha(self, val):
-        self.folha = val
-    def eFolha(self):
-        return self.folha
-
-class No(): # é o objeto do dicionário árvore
-    def __init__(self, noDados): # recebe como parâmetro um noDados, de onde extrai todos seus atributos
-        self.palavra = noDados.retPalavra() # utilizada para dividir a árvore, pode não existir em folhas
-        self.respostas = noDados.retRespostas()
-        self.folha = noDados.eFolha()
-    def Palavra(self):
-        return self.palavra
-    def Respostas(self):
-        return self.respostas
-    def eFolha(self):
-        return self.folha
 
 # métodos auxiliares
 
@@ -139,21 +98,21 @@ def dividirArvore(arvore):
 
     return arvore1, arvore2
 
-def calculaNo(noDados):
+def calculano(nodados):
     global inicio
     global debug
     global py
     global qmaxmens
     global qtotmenscalc
 
-    indice = noDados.retIndice()
-    palavras = noDados.retPalavras();
-    mensagens = noDados.retMensagens();
+    indice = nodados.retindice
+    palavras = nodados.retpalavras
+    mensagens = nodados.retmensagens
 
     fim = timer()
-    qMens = np.shape(mensagens)[0]
-    if qMens > qmaxmens:
-        qmaxmens = qMens
+    qmens = np.shape(mensagens)[0]
+    if qmens > qmaxmens:
+        qmaxmens = qmens
 
     if debug:
         print('-'*79)
@@ -162,7 +121,7 @@ def calculaNo(noDados):
         print('')
         print('Ate o no ', indice, ': ')
         print(' tempo (em segundos): ', str(timedelta(seconds=fim - inicio)))
-        print('quantidade de mensagens: ', qMens)
+        print('quantidade de mensagens: ', qmens)
         print('-'*79)
 
     # escolher uma resposta para iniciar o processo:
@@ -177,13 +136,13 @@ def calculaNo(noDados):
     respEscMensagens = mensagens[mensagens[:,0]==respEsc]
     if debug: print('conjunto de mensagens apenas com a resposta escolhida')
     if debug: print(respEscMensagens)
-    qMensRespEsc = np.shape(respEscMensagens)[0]
-    if debug: print('quantidade de mensagens com a resposta escolhida: ', qMensRespEsc)
+    qmensRespEsc = np.shape(respEscMensagens)[0]
+    if debug: print('quantidade de mensagens com a resposta escolhida: ', qmensRespEsc)
     # taxa de mensagens com a resposta escolhida (C)
-    tMensRespEsc = dividir(qMensRespEsc, qMens);
+    tMensRespEsc = dividir(qmensRespEsc, qmens);
     if debug: print('taxa de mensagens com a resposta escolhida: ', tMensRespEsc);
     # taxa de mensagens sem a resposta escolhida (A)
-    tMens_RespEsc = dividir((qMens - qMensRespEsc), qMens);
+    tMens_RespEsc = dividir((qmens - qmensRespEsc), qmens);
     if debug: print('taxa de mensagens sem a resposta escolhida: ', tMens_RespEsc);
     giniO = 1 - (pow(tMensRespEsc, 2) + pow(tMens_RespEsc, 2));
     # gini negativo não faz sentido ...
@@ -191,13 +150,13 @@ def calculaNo(noDados):
     if debug: print('GINI de O: ', giniO);
     # calculando o gini de cada palavra
     #  mensagens com cada palavra avaliada e qualquer resposta
-    vqMensPalAval = (mensagens[:,1:]==1.0).sum(axis=0, dtype=float)
+    vqmensPalAval = (mensagens[:,1:]==1.0).sum(axis=0, dtype=float)
     if debug: print('mensagens com cada palavra avaliada e qualquer resposta:')
-    if debug: print(vqMensPalAval)
+    if debug: print(vqmensPalAval)
     # quantidade de mensagens com a resposta escolhida com cada palavra
-    vqMensRespEscPalAval = (respEscMensagens[:,1:]==1.0).sum(axis=0, dtype=float)
+    vqmensRespEscPalAval = (respEscMensagens[:,1:]==1.0).sum(axis=0, dtype=float)
     if debug: print('mensagens com cada palavra e a resposta escolhida:')
-    if debug: print(vqMensRespEscPalAval)
+    if debug: print(vqmensRespEscPalAval)
     # taxa de mensagens com a palavra sendo analisada e a resposta escolhida
     #
     # pode ser usado o método np.divide(), por exemplo:
@@ -213,20 +172,20 @@ def calculaNo(noDados):
     #    c=a/b
     #    RuntimeWarning: invalid value encountered in true_divide
     #    c=a/b
-    vtqMensRespEscPalAval = \
-    np.divide(vqMensRespEscPalAval, vqMensPalAval, out=np.zeros_like(vqMensRespEscPalAval), \
-    where=vqMensPalAval!=0.0, casting='unsafe')
+    vtqmensRespEscPalAval = \
+    np.divide(vqmensRespEscPalAval, vqmensPalAval, out=np.zeros_like(vqmensRespEscPalAval), \
+    where=vqmensPalAval!=0.0, casting='unsafe')
     if debug: print('taxa de mensagens com cada palavra e a resposta escolhida:')
-    if debug: print(vtqMensRespEscPalAval)
+    if debug: print(vtqmensRespEscPalAval)
     # taxa de mensagens com a palavra sendo analisada e a resposta diferente da escolhida
-    vqMens_RespEscPalAval = vqMensPalAval - vqMensRespEscPalAval
-    vtqMens_RespEscPalAval = \
-    np.divide(vqMens_RespEscPalAval, vqMensPalAval, out=np.zeros_like(vqMens_RespEscPalAval), \
-    where=vqMensPalAval!=0.0, casting='unsafe')
+    vqmens_RespEscPalAval = vqmensPalAval - vqmensRespEscPalAval
+    vtqmens_RespEscPalAval = \
+    np.divide(vqmens_RespEscPalAval, vqmensPalAval, out=np.zeros_like(vqmens_RespEscPalAval), \
+    where=vqmensPalAval!=0.0, casting='unsafe')
     if debug: print('taxa de mensagens com cada palavra e resposta diferente da escolhida:')
-    if debug: print(vtqMens_RespEscPalAval)
+    if debug: print(vtqmens_RespEscPalAval)
     # gini das mensagens com cada palavra e com a resposta escolhida
-    vGiniMensPalRespEsc = 1 - (pow(vtqMensRespEscPalAval, 2) + pow(vtqMens_RespEscPalAval, 2));
+    vGiniMensPalRespEsc = 1 - (pow(vtqmensRespEscPalAval, 2) + pow(vtqmens_RespEscPalAval, 2));
     # gini negativo não faz sentido, zera
     # pode ser utilizado o método clip, exemplo:
     # a: [-1.  2. -5.  9. -3.]
@@ -240,32 +199,32 @@ def calculaNo(noDados):
     if debug: print(vGiniMensPalRespEsc)
 
     #  mensagens sem cada palavra avaliada e qualquer resposta
-    vqMens_PalAval = (mensagens[:,1:]==0).sum(axis=0, dtype=float)
+    vqmens_PalAval = (mensagens[:,1:]==0).sum(axis=0, dtype=float)
     # quantidade de mensagens com a resposta escolhida sem cada palavra
-    vqMensRespEsc_PalAval = (respEscMensagens[:,1:]==0).sum(axis=0, dtype=float)
+    vqmensRespEsc_PalAval = (respEscMensagens[:,1:]==0).sum(axis=0, dtype=float)
     if debug: print('mensagens com a resposta escolhida e sem cada palavra:')
-    if debug: print(vqMensRespEsc_PalAval)
+    if debug: print(vqmensRespEsc_PalAval)
     # taxa de mensagens sem a palavra sendo analisada e com resposta escolhida
-    vtqMensRespEsc_PalAval = np.divide(vqMensRespEsc_PalAval, vqMens_PalAval, \
-     out=np.zeros_like(vqMensRespEsc_PalAval), where=vqMens_PalAval!=0, casting='unsafe')
+    vtqmensRespEsc_PalAval = np.divide(vqmensRespEsc_PalAval, vqmens_PalAval, \
+     out=np.zeros_like(vqmensRespEsc_PalAval), where=vqmens_PalAval!=0, casting='unsafe')
     if debug: print('taxa de mensagens com a resposta escolhida e sem cada palavra:')
-    if debug: print(vtqMensRespEsc_PalAval)
+    if debug: print(vtqmensRespEsc_PalAval)
     # taxa de mensagens sem cada palavra sendo avaliada e resposta diferente da escolhida
-    vqMens_RespEsc_PalAval = vqMens_PalAval - vqMensRespEsc_PalAval
-    vtqMens_RespEsc_PalAval = np.divide(vqMens_RespEsc_PalAval, vqMens_PalAval, \
-     out=np.zeros_like(vqMens_RespEsc_PalAval), where=vqMens_PalAval!=0, casting='unsafe')
+    vqmens_RespEsc_PalAval = vqmens_PalAval - vqmensRespEsc_PalAval
+    vtqmens_RespEsc_PalAval = np.divide(vqmens_RespEsc_PalAval, vqmens_PalAval, \
+     out=np.zeros_like(vqmens_RespEsc_PalAval), where=vqmens_PalAval!=0, casting='unsafe')
     if debug: print('taxa de mensagens sem cada palavra sendo avaliada e resposta diferente da escolhida:')
-    if debug: print(vtqMens_RespEsc_PalAval)
+    if debug: print(vtqmens_RespEsc_PalAval)
     # gini das mensagens sem cada palavra sendo avaliada e sem a resposta escolhida
-    vGiniMens_PalAval_RespEsc = 1 - (pow(vtqMensRespEsc_PalAval, 2) + pow(vtqMens_RespEsc_PalAval, 2));
+    vGiniMens_PalAval_RespEsc = 1 - (pow(vtqmensRespEsc_PalAval, 2) + pow(vtqmens_RespEsc_PalAval, 2));
     # gini negativo não faz sentido, zera
     vGiniMens_PalAval_RespEsc = vGiniMens_PalAval_RespEsc.clip(min=0)
     if debug: print('gini das mensagens sem cada palavra sendo avaliada e sem a resposta escolhida:')
     if debug: print(vGiniMens_PalAval_RespEsc)
 
     # calculando o gini de cada palavra
-    vGiniPalAval = giniO - ((vGiniMensPalRespEsc * vqMensPalAval / qMens) + \
-    (vGiniMens_PalAval_RespEsc * vqMens_PalAval / qMens))
+    vGiniPalAval = giniO - ((vGiniMensPalRespEsc * vqmensPalAval / qmens) + \
+    (vGiniMens_PalAval_RespEsc * vqmens_PalAval / qmens))
     # gini negativo não faz sentido, zera
     vGiniPalAval = vGiniPalAval.clip(min=0)
     if debug: print('Gini de cada palavra avaliada:')
@@ -281,9 +240,9 @@ def calculaNo(noDados):
         PalEsc = [1]
         indPalEsc = 0
     # inserir nos dados do nó a palavra que divide a árvore
-    noDados.insPalavra(PalEsc)
+    nodados.inspalavra(PalEsc)
     if debug: print('Melhor palavra: ', PalEsc, ' indice: ', indPalEsc +1)
-    if debug: print('conferindo palavra do no: ', noDados.retPalavra())
+    if debug: print('conferindo palavra do no: ', nodados.retpalavra)
     # dividir as mensagens entre as que contém a palavra com melhor GINI e as que não.
     mensagensPalAval = mensagens[mensagens[:, indPalEsc+1]==1]
     mensagens_PalAval = mensagens[mensagens[:, indPalEsc+1]==0]
@@ -299,7 +258,7 @@ def calculaNo(noDados):
     if not np.size(mensagens, 0) == np.size(mensagensPalAval, 0) + np.size(mensagens_PalAval, 0):
         print('*'*79)
         print('-'*79)
-        print('Erro de invariância no nó ', noDados.retIndice())
+        print('Erro de invariância no nó ', nodados.retindice)
         print('pai: ', np.size(mensagens, 0))
         print('esq: ', np.size(mensagensPalAval, 0))
         print('dir: ', np.size(mensagens_PalAval, 0))
@@ -307,15 +266,15 @@ def calculaNo(noDados):
         print('-'*79)
         raise  Exception('Divisão de dados com falha!')
     # ajusta a lista de palavras para os nós filhos (esquerdo e direito)
-    palavrasProxNo = np.delete(palavras, [indPalEsc+1])
+    palavrasProxno = np.delete(palavras, [indPalEsc+1])
     if debug: print('palavras proximo no:')
-    if debug: print(palavrasProxNo)
+    if debug: print(palavrasProxno)
     # inicia o calculo dos dados de nós ou folhas
     # à esquerda e a direata que serão retornados.
 
-    # NoDados(indice, palavras, mensagens)
-    noDadosEsq = NoDados(indice*2+1, palavrasProxNo, mensagensPalAval)
-    noDadosDir = NoDados(indice*2+2, palavrasProxNo, mensagens_PalAval)
+    # nodados(indice, palavras, mensagens)
+    nodadosEsq = qasmod.nodados(indice*2+1, palavrasProxno, mensagensPalAval)
+    nodadosDir = qasmod.nodados(indice*2+2, palavrasProxno, mensagens_PalAval)
     # verifica a expansão da árvore:
     # caso não hajam mais mensagens, ou caso só fique uma resposta,
     # para de expandir
@@ -346,7 +305,7 @@ def calculaNo(noDados):
 
     # np.unique(mensagensPalAval[:,0] retorna um vetor com
     # os elementos únicos da primeira coluna, as respostas
-    noDadosEsqResp = np.unique(mensagensPalAval[:,0])
+    nodadosEsqResp = np.unique(mensagensPalAval[:,0])
     # np.size(), resulta em um inteiro:
     # exemplo com matriz:
     # a = [[1 2 3]
@@ -361,9 +320,9 @@ def calculaNo(noDados):
     #  np.size(a) =  3
     #  np.size(a,0)) =  3
     #  np.size(a,1)) = IndexError: tuple index out of range
-    if np.size(noDadosEsqResp) < 2 or np.size(mensagensPalAval, 0) <2 \
+    if np.size(nodadosEsqResp) < 2 or np.size(mensagensPalAval, 0) <2 \
         or np.size(mensagensPalAval, 1) <2:
-        # np.size(noDadosEsqResp) dá o número de respostas.
+        # np.size(nodadosEsqResp) dá o número de respostas.
         #  Se o resultado é menor que 2, indica uma ou
         #  nenhuma resposta: é folha!
         #
@@ -377,37 +336,37 @@ def calculaNo(noDados):
         #  portanto, numero de colunas <2 significa
         #  que não restam mais palavras a processar:
         #  é uma folha!
-        noDadosEsq.atribFolha(True)
+        nodadosEsq.atribfolha(True)
         # colocamos as respostas na folha (e somente nelas)
         # vão ser sempre vetores, no caso ideal, com apenas
         # um valor.
-        if np.size(noDadosEsqResp) > 0:
-            noDadosEsq.insRespostas(noDadosEsqResp)
-            if debug: print('folha com resposta(s): ', noDadosEsqResp, \
+        if np.size(nodadosEsqResp) > 0:
+            nodadosEsq.insrespostas(nodadosEsqResp)
+            if debug: print('folha com resposta(s): ', nodadosEsqResp, \
             ' a esquerda do no ', indice)
         else:
             # o ideal é quando a folha tem uma resposta,
             # mas, se não tiver:
             # colocamos as respotas do no pai
-            noDadosEsq.insRespostas(np.unique(mensagens[:,0]))
+            nodadosEsq.insrespostas(np.unique(mensagens[:,0]))
             if debug: print('folha com resposta(s) (do pai): ', \
             np.unique(mensagens[:,0]), ' a esquerda do no ', indice)
     # à direita
     # (obs.: as explicações são as mesmas dadas acima
     # para o processamento de expansão à esquerda).
-    noDadosDirResp = np.unique(mensagens_PalAval[:,0])
-    if np.size(noDadosDirResp) < 2 or np.size(mensagens_PalAval, 0) <2 \
+    nodadosDirResp = np.unique(mensagens_PalAval[:,0])
+    if np.size(nodadosDirResp) < 2 or np.size(mensagens_PalAval, 0) <2 \
         or np.size(mensagens_PalAval, 1) <2:
-        noDadosDir.atribFolha(True)
-        if np.size(noDadosDirResp) >0:
-            noDadosDir.insRespostas(noDadosDirResp)
+        nodadosDir.atribfolha(True)
+        if np.size(nodadosDirResp) >0:
+            nodadosDir.insrespostas(nodadosDirResp)
             if debug: print('folha com resposta(s): ', \
-            noDadosDirResp, ' a direita do no ', indice)
+            nodadosDirResp, ' a direita do no ', indice)
         else:
-            noDadosDir.insRespostas(np.unique(mensagens[:,0]))
+            nodadosDir.insrespostas(np.unique(mensagens[:,0]))
             if debug: print('folha com resposta(s) (do pai): ', \
             np.unique(mensagens[:,0]), ' a direita do no ', indice)
-    return (noDadosEsq, noDadosDir)
+    return (nodadosEsq, nodadosDir)
 
 # método principal
 
@@ -423,7 +382,7 @@ def main():
     global limitePersArv
     global caminhoDePersistencia
     global intervaloMostra
-    global numMaxNosPar
+    global numMaxnosPar
     global tamTeste
 
     # caminho para persistir a arvore
@@ -437,13 +396,13 @@ def main():
     # caso seja nescessário persistir
     #parcialmente a arvore para liberar memória
     arvoresPers = []
-    numNosPersistidos = 0
+    numnosPersistidos = 0
     # uma lista de nós a serem processados
-    filaDeNos = []
-    filaDeNosProcessados = []
-    # o primeiro noDados é pré processado,
+    filaDenos = []
+    filaDenosProcessados = []
+    # o primeiro nodados é pré processado,
     # por exemplo, recebe indice 0 (raiz).
-    # os próximos são gerados no calculo do noDados,
+    # os próximos são gerados no calculo do nodados,
     # o indice é calculado usando a formula
     # indice esquerda = 2* indice atual + 1
     # indice direita = 2* indice atual + 2
@@ -474,7 +433,7 @@ def main():
         #ler o arquivo csv
         with open("../../data/Training.csv", encoding='iso-8859-1') as csvfile:
             reader = csv.reader(csvfile)
-            palavras = next(reader, None)
+            palavras = next(reader, none)
             for mensagem in reader:
                 mensagens.append(mensagem)
         mensagens = np.asarray(mensagens, dtype = np.dtype('uint32'))
@@ -511,91 +470,91 @@ def main():
     ultimapass = timer()
 
     # dados do nó raiz
-    #noDados = NoDados(indice, palavras, treinos)
-    noDados = NoDados(0, palavras, treinos)
-    filaDeNos.append(noDados)
-    numNos = 0
-    numFolhas = 0
-    numMensFolhas = 0
+    #nodados = nodados(indice, palavras, treinos)
+    nodados = qasmod.nodados(0, palavras, treinos)
+    filaDenos.append(nodados)
+    numnos = 0
+    numfolhas = 0
+    numMensfolhas = 0
     while True:
         if paralelizar:
             # vamos tentar usar uma pool para
             # processamento paralelo dos dados dos nós.
             pool = ThreadPool(4)
             # pelas limitaçoes da máquina,
-            # quero processar no máximo numMaxNosPar  dados de nós de cada vez
-            maxProcessos = min(numMaxNosPar, len(filaDeNos))
-            filaDeNosParalelos = []
+            # quero processar no máximo numMaxnosPar  dados de nós de cada vez
+            maxProcessos = min(numMaxnosPar, len(filaDenos))
+            filaDenosParalelos = []
             for i in range(maxProcessos):
-                filaDeNosParalelos.append(filaDeNos.pop(0))
-            filaDeNosProcessados = pool.map(calculaNo, filaDeNosParalelos)
+                filaDenosParalelos.append(filaDenos.pop(0))
+            filaDenosProcessados = pool.map(calculano, filaDenosParalelos)
             pool.close()
             pool.join()
-            if debug: print('Resultado do pool: ',  len(filaDeNosProcessados))
+            if debug: print('Resultado do pool: ',  len(filaDenosProcessados))
             # vamos processar as filas
             ## colocar o(s) nó(s) calculado(s) na árvore
-            for i in range(len(filaDeNosParalelos)):
-                noDados = filaDeNosParalelos.pop(0)
-                arvore[noDados.retIndice()] = No(noDados)
-                numNos += 1
-                if debug: print('arvore recebe palavra: ', noDados.retPalavra())
+            for i in range(len(filaDenosParalelos)):
+                nodados = filaDenosParalelos.pop(0)
+                arvore[nodados.retindice] = qasmod.no(nodados)
+                numnos += 1
+                if debug: print('arvore recebe palavra: ', nodados.retpalavra)
             # os dados de nós retornados que não forem folhas
             # devem ser acrescentados à fila de dados de nós,
             # caso contrário vão para a árvore
-            for i in range(len(filaDeNosProcessados)):
-                (noDadosEsq, noDadosDir) = filaDeNosProcessados.pop(0)
-                noDados = noDadosEsq
-                if noDados.eFolha():
-                    arvore[noDados.retIndice()] = No(noDados)
-                    numFolhas += 1
+            for i in range(len(filaDenosProcessados)):
+                (nodadosEsq, nodadosDir) = filaDenosProcessados.pop(0)
+                nodados = nodadosEsq
+                if nodados.efolha:
+                    arvore[nodados.retindice] = qasmod.no(nodados)
+                    numfolhas += 1
                     if debug: print('arvore recebe folha')
                 else:
-                    filaDeNos.append(noDados)
-                noDados = noDadosDir
-                if noDados.eFolha():
-                    arvore[noDados.retIndice()] = No(noDados)
-                    numFolhas += 1
+                    filaDenos.append(nodados)
+                nodados = nodadosDir
+                if nodados.efolha:
+                    arvore[nodados.retindice] = qasmod.no(nodados)
+                    numfolhas += 1
                     if debug: print('arvore recebe folha')
                 else:
-                    filaDeNos.append(noDados)
+                    filaDenos.append(nodados)
         else: # não parelelizar
-            noDados = filaDeNos.pop(0)
-            (noDadosEsq, noDadosDir) = calculaNo(noDados)
+            nodados = filaDenos.pop(0)
+            (nodadosEsq, nodadosDir) = calculano(nodados)
             # podemos mais uma vez verificar a invariancia
             # dos dados
-            assert np.size(noDados.retMensagens(), 0) == \
-            np.size(noDadosEsq.retMensagens(), 0) + np.size(noDadosDir.retMensagens(), 0)
+            assert np.size(nodados.retmensagens, 0) == \
+            np.size(nodadosEsq.retmensagens, 0) + np.size(nodadosDir.retmensagens, 0)
             # coloca o nó processado na árvore
-            arvore[noDados.retIndice()] = No(noDados)
+            arvore[nodados.retindice] = qasmod.no(nodados)
             # na verdade, pode ser um nó ou folha!
-            if noDados.eFolha():
-                numFolhas +=1
-                numMensFolhas += np.size(noDados.retMensagens(), 0)
+            if nodados.efolha:
+                numfolhas +=1
+                numMensfolhas += np.size(nodados.retmensagens, 0)
             else:
-                numNos += 1
+                numnos += 1
                 # se é nó, processa filhos
-                noDados = noDadosEsq
-                if noDados.eFolha():
-                    arvore[noDados.retIndice()] = No(noDados)
-                    numFolhas += 1
-                    numMensFolhas += np.size(noDados.retMensagens(), 0)
+                nodados = nodadosEsq
+                if nodados.efolha:
+                    arvore[nodados.retindice] = qasmod.no(nodados)
+                    numfolhas += 1
+                    numMensfolhas += np.size(nodados.retmensagens, 0)
                     if debug: print('arvore recebe folha')
                 else:
-                    filaDeNos.append(noDados)
-                noDados = noDadosDir
-                if noDados.eFolha():
-                    arvore[noDados.retIndice()] = No(noDados)
-                    numFolhas += 1
-                    numMensFolhas += np.size(noDados.retMensagens(), 0)
+                    filaDenos.append(nodados)
+                nodados = nodadosDir
+                if nodados.efolha:
+                    arvore[nodados.retindice] = qasmod.no(nodados)
+                    numfolhas += 1
+                    numMensfolhas += np.size(nodados.retmensagens, 0)
                     if debug: print('arvore recebe folha')
                 else:
-                    filaDeNos.append(noDados)
-            if not len(arvore) == numNos+numFolhas:
+                    filaDenos.append(nodados)
+            if not len(arvore) == numnos+numfolhas:
                 print('largura da arvore: ', len(arvore))
-                print('numero de nós: ', numNos)
-                print('numero de folhas: ', numFolhas)
+                print('numero de nós: ', numnos)
+                print('numero de folhas: ', numfolhas)
                 raise Exception('tamanho da arvore incompatível!')
-                #TODO programa interrompido aquí, 26/Nov/2018
+                #TODO programa interrompido aquí, 26/nov/2018
         # totalização da rodada
         if (timer() - ultimapass) >= intervaloMostra:
             usoMemoria = py.memory_info()[0]/2.**30  # memory use in GB...I think
@@ -603,26 +562,26 @@ def main():
             print('-'*79)
             print('uso de memoria(GB):', usoMemoria)
             print('Tempo ate agora: ', str(timedelta(seconds=fim - inicio)))
-            print('total de nós : ', numNos)
-            print('total de folhas: ', numFolhas, ' consumiram ', numMensFolhas, 'mensagens')
-            print('mensagens a consumir: ', totMensO, ' mensagens', 'invariancia: ', totMensO - numMensFolhas)
-            print('total na arvore : ', numNos + numFolhas)
-            print('nos na fila: ', len(filaDeNos))
+            print('total de nós : ', numnos)
+            print('total de folhas: ', numfolhas, ' consumiram ', numMensfolhas, 'mensagens')
+            print('mensagens a consumir: ', totMensO, ' mensagens', 'invariancia: ', totMensO - numMensfolhas)
+            print('total na arvore : ', numnos + numfolhas)
+            print('nos na fila: ', len(filaDenos))
             print('maior numero de linhas em um no na rodada: ', qmaxmens)
             print('-'*79)
             ultimapass = timer()
             qmaxmens = 0
-        if debug: print('Ao fim da repeticao temos para processar: ', len(filaDeNos))
+        if debug: print('Ao fim da repeticao temos para processar: ', len(filaDenos))
         # se a fila de dados de nos estiver vazia encerra
-        if len(filaDeNos)==0:
+        if len(filaDenos)==0:
             usoMemoria = py.memory_info()[0]/2.**30  # memory use in GB...I think
             fim = timer()
             print('='*79)
             print('Processamento encerrado!')
             print('uso de memoria(GB):', usoMemoria)
-            print('total de nós : ', numNos)
-            print('total de folhas: ', numFolhas)
-            print('total na árvore: ', numNos + numFolhas)
+            print('total de nós : ', numnos)
+            print('total de folhas: ', numfolhas)
+            print('total na árvore: ', numnos + numfolhas)
             print('total de mensagens em O: ', totMensO)
             print('Tempo de processamento: ', str(timedelta(seconds=fim - inicio)))
             print('='*79)
@@ -633,7 +592,7 @@ def main():
         if len(arvore) > limitePersArv:
             if debug: print('persistindo parcialmente a arvore.')
             arvoresPers.append(salvarArvore(arvore))
-            numNosPersistidos += len(arvore)
+            numnosPersistidos += len(arvore)
             arvore = {}
 
     # caso a árvore tenha sido persistida em partes
@@ -656,9 +615,9 @@ def main():
     erros = 0
     testadas = 0
     # quantidade de mensagens a testar
-    qMensTeste = np.size(testes, 0)
-    print('mensagens no conjunto de mensagens: ', qMensTeste)
-    for i in range(qMensTeste):
+    qmensteste = np.size(testes, 0)
+    print('mensagens no conjunto de mensagens: ', qmensteste)
+    for i in range(qmensteste):
         mensagem = testes[i]
         #pesquisar a arvore gerada iniciando pela raiz
         proximo = [0]
@@ -666,11 +625,11 @@ def main():
             ind = proximo.pop(0)
             no = arvore.get(ind)
             if debug: print('no: ', ind)
-            if not no.eFolha():
+            if not no.efolha:
                 # verifica se a mensagem tem a
                 # palavra da arvore ou não.
-                palNo = no.Palavra()
-                if mensagem[palavras.index(palNo)] == 1:
+                palno = no.retpalavra
+                if mensagem[palavras.index(palno)] == 1:
                     # mensagem tem a palavra
                     # vai para a esquerda
                     proximo.append(ind*2+1)
@@ -680,7 +639,7 @@ def main():
                     proximo.append(ind*2+2)
             else:
                 # hora da decisão
-                if mensagem[0] == no.Respostas()[0]:
+                if mensagem[0] == no.retrespostas[0]:
                     acertos +=1
                 else:
                     erros += 1
