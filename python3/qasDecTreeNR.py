@@ -77,7 +77,7 @@ def main():
 
 
     # caminho para persistir a arvore
-    caminho = 'data/arvores/'
+    caminho = 'dados/arvores/'
     # caso não exista, cria
     pathlib.Path(caminho).mkdir(parents=True, exist_ok=True)
 
@@ -121,7 +121,7 @@ def main():
         print('Teste aleatório:')
     else:
         #ler o arquivo csv
-        with open("../../data/Training.csv", encoding='iso-8859-1') as csvfile:
+        with open("dados/Training.csv", encoding='iso-8859-1') as csvfile:
             reader = csv.reader(csvfile)
             palavras = next(reader, none)
             for mensagem in reader:
