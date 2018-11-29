@@ -1,0 +1,21 @@
+vamos armazenar a arvore em um dicionario.
+arvore = {};
+
+
+
+n=0; // no raiz
+
+class No():
+    def __init__(self, indice, palavras, pai, mensagens, nome):
+        self.indice = indice
+        self.esquerda = None
+        self.direita = None
+        self.palavra = None
+        self.respostas = None
+        self.mensagens = mensagens
+        self.palavras = palavras
+        self.nome = nome
+        self.pai = pai
+        self.folha = False
+        self.processado = False
+
