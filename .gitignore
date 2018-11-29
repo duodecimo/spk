@@ -1,2 +1,4 @@
 /build/
 /dist/
+/dados/
+/__pycache__/

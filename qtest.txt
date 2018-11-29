@@ -1,4 +1,0 @@
---- timestamp: 2018-11-09 19:48:34.63
-Counting answers on awDataset: 67
-Data loaded. Starting tree
-Number of attributes: 300
