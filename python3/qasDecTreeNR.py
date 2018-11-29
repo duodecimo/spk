@@ -28,6 +28,9 @@ def main():
 
     # utiliza dados randômicos
     # ao invés de reais.
+    # caso contrário, busca o
+    # arquivo Training.csv
+    # na subpasta dados.
     executarTeste = True
 
     # define as dimensões da
@@ -39,7 +42,7 @@ def main():
     # treino (90%) e teste(10%),
     # caso contrário usa todos os dados
     # tanto para treino como para teste.
-    # normalmente isso causa overfiting.
+    # é de se esperar overfitting.
     particionar = True
 
     # se verdadeiro a expansão da árvore

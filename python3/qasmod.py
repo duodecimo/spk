@@ -86,20 +86,27 @@ def dividir(x, y):
     return x/y
 
 def salvar_arvore(arvore, caminho):
-    comp = datetime.now().strftime('%Y_%m_%d_%H_%M_%S_%f')[:-2] 
-    nomeArq =  caminho +  'arvore_' + comp + '.pkl'
-    nomeArq2 =  caminho +  'arvore.pkl'
-    arq = open(nomeArq,'wb')
+    comp = datetime.now().strftime('%Y_%m_%d_%H_%M_%S_%f')[:-2]
+    # utiliza a forma arvore_<timestamp>.pkl para o arquivo,
+    # garantindo a unicidade do nome em seguidas
+    # execuções do programa.
+    nome_arq =  caminho +  'arvore_' + comp + '.pkl'
+    # utiliza apenas arvore.pfl para o arquivo,
+    # sempre sobrescrevendo o anterior, garantindo
+    # desta forma acesso com um nome garantido
+    # à última árvore gerada.
+    nome_arq2 =  caminho +  'arvore.pkl'
+    arq = open(nome_arq,'wb')
     pickle.dump(arvore, arq, pickle.HIGHEST_PROTOCOL)
     arq.close()
     try:
-        pathlib.Path(nomeArq2).unlink()
+        pathlib.Path(nome_arq2).unlink()
     except FileNotFoundError:
         pass
-    arq = open(nomeArq2,'wb')
+    arq = open(nome_arq2,'wb')
     pickle.dump(arvore, arq, pickle.HIGHEST_PROTOCOL)
     arq.close()
-    return nomeArq
+    return nome_arq
 
 def carregar_arvore(caminho, arq='arvore.pkl'):
     arqref = open(arq,'rb')
