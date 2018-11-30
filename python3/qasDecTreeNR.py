@@ -31,7 +31,7 @@ def main():
     # caso contrário, busca o
     # arquivo Training.csv
     # na subpasta dados.
-    executarTeste = True
+    executarTeste = False
 
     # define as dimensões da
     # matriz de teste
@@ -126,7 +126,7 @@ def main():
         #ler o arquivo csv
         with open("dados/Training.csv", encoding='iso-8859-1') as csvfile:
             reader = csv.reader(csvfile)
-            palavras = next(reader, none)
+            palavras = next(reader, None)
             for mensagem in reader:
                 mensagens.append(mensagem)
         mensagens = np.asarray(mensagens, dtype = np.dtype('uint32'))

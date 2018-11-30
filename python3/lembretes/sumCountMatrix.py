@@ -8,6 +8,20 @@ a=np.random.randint(2, size=(10, 8))
 # primeira linha, palavras
 a[:,0] = np.random.randint(50, 55, size=10)
 print(a)
+linhas_a = np.size(a, 0)
+print('linhas em a: ', linhas_a)
+print('qmp1 = (a[:,1:]==1.0).sum(axis=0, dtype=float)')
+qmp1 = (a[:,1:]==1.0).sum(axis=0, dtype=float)
+print(qmp1)
+print('qmp0 = (a[:,1:]==0.0).sum(axis=0, dtype=float)')
+qmp0 = (a[:,1:]==0.0).sum(axis=0, dtype=float)
+print(qmp0)
+print('qmp1 = np.divide(qmp1, linhas_a, dtype=float)')
+qmp1 = np.divide(qmp1, linhas_a, dtype=float)
+print(qmp1)
+print('qmp0 = np.divide(qmp0, linhas_a, dtype=float)')
+qmp0 = np.divide(qmp0, linhas_a, dtype=float)
+print(qmp0)
 
 '''
 df = pd.DataFrame(a, columns = ["Answer", "a", "b", "c", "d", "e", "f", "g"])
@@ -25,13 +39,56 @@ np.add.at(out[:, 1:], unq_inv, a[:, 1:])
 print('out')
 print(out)
 
+print('np.divide(out[:, 1:], linhas_a, dtype=float)')
+print(np.divide(out[:, 1:], linhas_a, dtype=float))
+
+print('np.sum(np.power(np.divide(out[:, 1:], linhas_a, dtype=float), 2), axis=0)')
+print(np.sum(np.power(np.divide(out[:, 1:], linhas_a, dtype=float), 2), axis=0))
+
+print('e = 1 - np.sum(np.power(np.divide(out[:, 1:], linhas_a, dtype=float), 2), axis=0)')
+e = 1 - np.sum(np.power(np.divide(out[:, 1:], linhas_a, dtype=float), 2), axis=0)
+print('e')
+print(e)
+
+print('b = np.logical_not(a).astype(int)')
+b = np.logical_not(a).astype(int)
+b[:,0] = a[:,0]
+print('a')
+print(a)
+print('b')
+print(b)
+
+unq, unq_inv = np.unique(b[:, 0], return_inverse=True)
+out = np.zeros((len(unq), b.shape[1]), dtype=b.dtype)
+out[:, 0] = unq
+np.add.at(out[:, 1:], unq_inv, b[:, 1:])
+print('f = 1 - np.sum(np.power(np.divide(out[:, 1:], linhas_a, dtype=float), 2), axis=0)')
+f = 1 - np.sum(np.power(np.divide(out[:, 1:], linhas_a, dtype=float), 2), axis=0)
+print('f')
+print(f)
+
+# sendo e o gini com 1, f o gini com 0
+# para a media ponderada
+print('g = np.column_stack((e,f))')
+g = np.column_stack((e,f))
+print('g')
+print(g)
+print('h = np.column_stack((qmp1,qmp0))')
+h = np.column_stack((qmp1,qmp0))
+print('h')
+print(h)
+
+i = np.average(g, axis=1, weights=h)
+print(i)
+print(0.95*0.3 + 0.87*0.7)
+'''
+
 c= np.unique(a[:, 0]) 
 
 print('c')
 print(c)
 
 
-'''
 print('a = a[a[:,0].argsort()]')
 a = a[a[:,0].argsort()]
 print(a)
