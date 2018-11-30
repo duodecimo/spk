@@ -282,6 +282,17 @@ def calcula_no(nodados_ob, debug=False):
 
 def escolher_melhor_palavra(mensagens, palavras, q_mens, debug=False):
 
+    # para o gini do conjunto
+
+    # subtotaliza cada resposta
+    unq, unq_inv = np.unique(mensagens[:, 0], return_inverse=True)
+    out = np.zeros((len(unq), mensagens.shape[1]), dtype=mensagens.dtype)
+    out[:, 0] = unq    
+    vet_sub_tot_resps = out[:,1]
+    tot_resps = np.sum(vet_sub_tot_resps)
+    sum_probs_resps = np.power(np.divide(vet_sub_tot_resps, tot_resps, dtype=float), 2)
+    gini_mensagens = 1 - np.sum(sum_probs_resps)
+
     # para cada palavra
     
     # com resposta
@@ -315,9 +326,12 @@ def escolher_melhor_palavra(mensagens, palavras, q_mens, debug=False):
     qmp0 = (mensagens[:,1:]==0.0).sum(axis=0, dtype=float)
     g1 = np.column_stack((gini_com_resposta, gini_sem_resposta))
     w = np.column_stack((qmp1, qmp0))
-    gini_palavras = np.average(g1, axis=1, weights=w)
+    gini_palavras = gini_mensagens - np.average(g1, axis=1, weights=w)
     if debug: print('gini palavras: \n', gini_palavras)
-    indice_melhor_palavra = minval = np.argmin(gini_palavras)
+    # para usar o menor gini
+    indice_melhor_palavra = np.argmin(gini_palavras)
+    # para usar o maior gini
+    #indice_melhor_palavra = np.argmax(gini_palavras)
     melhor_palavra = palavras[indice_melhor_palavra+1]
     if debug: print('melhor palavra e indice: \n', melhor_palavra, ' - ', indice_melhor_palavra)
     return [melhor_palavra, indice_melhor_palavra]

@@ -288,7 +288,7 @@ def main():
         # e junta apenas ao final
         if len(arvore) > limitePersArv:
             if debug: print('persistindo parcialmente a arvore.')
-            arvoresPers.append(qasmod.salvar_arvore(arvore))
+            arvoresPers.append(qasmod.salvar_arvore(arvore, caminho))
             num_nos_contabPersistidos += len(arvore)
             arvore = {}
 
