@@ -1,0 +1,24 @@
+Duó, 29/11/2018
+
+Vou descrever o cáculo do gini que quero aplicar.
+
+As classes são as respostas.
+
+As palavras são atributos (binários, {0,1})
+
+Para cada palavra:
+
+    (Gini do valor=1)
+    
+        Gini(t) = 1 - soma para cada resposta (r1 a rn) de: (<qlin rx = 1> / <tot rx>)**2
+    
+    (Gini do valor=0) 
+
+        Gini(t) = 1 - soma para cada resposta (r1 a rn) de: (<qlin rx = 0> / <tot rx>)**2
+
+    Gini vai ser média poderada:
+    
+        [(<quantidade de valores=1>/<quantidade total de valores>) * Gini(t) valor=1) +
+            (<quantidade de valores=0>/<quantidade total de valores>) * Gini(t) valor=0)]
+
+A melhor palavra tem o menor gini poderado!

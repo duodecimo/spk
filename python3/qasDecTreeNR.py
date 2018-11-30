@@ -180,7 +180,7 @@ def main():
             filaDenosParalelos = []
             for i in range(maxProcessos):
                 filaDenosParalelos.append(filaDenos.pop(0))
-            filaDenosProcessados = pool.map(qasmod.calculano, filaDenosParalelos)
+            filaDenosProcessados = pool.map(qasmod.calcula_no, filaDenosParalelos)
             pool.close()
             pool.join()
             if debug: print('Resultado do pool: ',  len(filaDenosProcessados))
@@ -212,7 +212,7 @@ def main():
                     filaDenos.append(nodados)
         else: # não parelelizar
             nodados = filaDenos.pop(0)
-            (nodadosEsq, nodadosDir) = qasmod.calculano(nodados, debug)
+            (nodadosEsq, nodadosDir) = qasmod.calcula_no(nodados, debug)
             # podemos mais uma vez verificar a invariancia
             # dos dados
             assert np.size(nodados.retmensagens, 0) == \

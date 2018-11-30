@@ -114,7 +114,7 @@ def carregar_arvore(caminho, arq='arvore.pkl'):
     arqref.close()
     return arvore
 
-def dividirArvore(arvore):
+def dividir_arvore(arvore):
     n = len(arvore) // 2
     i = iter(arvore.items())      # alternatively, i = d.iteritems() works in Python 2
 
@@ -124,7 +124,7 @@ def dividirArvore(arvore):
     return arvore1, arvore2
 
 
-def calculano(nodados_ob, debug=False):
+def calcula_no(nodados_ob, debug=False):
     #global inicio
     #global debug
     #global py
@@ -135,10 +135,10 @@ def calculano(nodados_ob, debug=False):
     mensagens = nodados_ob.retmensagens
 
     fim = timer()
-    qmens = np.shape(mensagens)[0]
+    q_mens = np.shape(mensagens)[0]
     
-    #if qmens > qmaxmens:
-    #    qmaxmens = qmens
+    #if q_mens > qmaxmens:
+    #    qmaxmens = q_mens
 
     if debug:
         usoMemoria = py.memory_info()[0]/2.**30  # memory use in GB...I think
@@ -146,138 +146,26 @@ def calculano(nodados_ob, debug=False):
         print('')
         print('Ate o no ', indice, ': ')
         print(' tempo (em segundos): ', str(timedelta(seconds=fim - inicio)))
-        #print('quantidade de mensagens: ', qmens)
+        #print('quantidade de mensagens: ', q_mens)
         print('-'*79)
 
-    # escolher uma resposta para iniciar o processo:
-    #  a resposta com maior número de ocorrências.
-    respostas, contagem = np.unique(mensagens[:,0], return_counts=True)
-    respostasAgrupadas = np.column_stack((respostas,contagem))
-    #  selecionar maior resposta agrupada
-    respEsc = respostasAgrupadas[np.argmax(respostasAgrupadas[:,1:]), 0]
-    if debug: print(' Reposta escolhida: ', respEsc);
+    # escolher melhor palavra (antigo)
+    [pal_esc, ind_pal_esc] = escolher_melhor_palavra_antigo(mensagens, palavras, q_mens, debug)
 
-    # calculando gini de O (O = conjunto de mensagens e suas respostas)
-    respEscMensagens = mensagens[mensagens[:,0]==respEsc]
-    if debug: print('conjunto de mensagens apenas com a resposta escolhida')
-    if debug: print(respEscMensagens)
-    qmensRespEsc = np.shape(respEscMensagens)[0]
-    if debug: print('quantidade de mensagens com a resposta escolhida: ', qmensRespEsc)
-    # taxa de mensagens com a resposta escolhida (C)
-    tMensRespEsc = dividir(qmensRespEsc, qmens);
-    if debug: print('taxa de mensagens com a resposta escolhida: ', tMensRespEsc);
-    # taxa de mensagens sem a resposta escolhida (A)
-    tMens_RespEsc = dividir((qmens - qmensRespEsc), qmens);
-    if debug: print('taxa de mensagens sem a resposta escolhida: ', tMens_RespEsc);
-    giniO = 1 - (pow(tMensRespEsc, 2) + pow(tMens_RespEsc, 2));
-    # gini negativo não faz sentido ...
-    giniO = max(0, giniO);
-    if debug: print('GINI de O: ', giniO);
-    # calculando o gini de cada palavra
-    #  mensagens com cada palavra avaliada e qualquer resposta
-    vqmensPalAval = (mensagens[:,1:]==1.0).sum(axis=0, dtype=float)
-    if debug: print('mensagens com cada palavra avaliada e qualquer resposta:')
-    if debug: print(vqmensPalAval)
-    # quantidade de mensagens com a resposta escolhida com cada palavra
-    vqmensRespEscPalAval = (respEscMensagens[:,1:]==1.0).sum(axis=0, dtype=float)
-    if debug: print('mensagens com cada palavra e a resposta escolhida:')
-    if debug: print(vqmensRespEscPalAval)
-    # taxa de mensagens com a palavra sendo analisada e a resposta escolhida
-    #
-    # pode ser usado o método np.divide(), por exemplo:
-    #  comando a = np.array([-1, 0, 1, 2, 3], dtype=float)
-    #  resulta em a = [-1.  0.  1.  2.  3.]
-    #  comando b = np.array([ 0, 0, 0, 2, 2], dtype=float)
-    #  resulta em b = [ 0.  0.  0.  2.  2.]
-    #  então, comando c = np.divide(a, b, out=np.zeros_like(a), where=b!=0)
-    #  resulta em [ 0.   0.   0.   1.   1.5]
-    #
-    #  observe que comando c=a/b gera avisos:
-    #    RuntimeWarning: divide by zero encountered in true_divide
-    #    c=a/b
-    #    RuntimeWarning: invalid value encountered in true_divide
-    #    c=a/b
-    vtqmensRespEscPalAval = \
-    np.divide(vqmensRespEscPalAval, vqmensPalAval, out=np.zeros_like(vqmensRespEscPalAval), \
-    where=vqmensPalAval!=0.0, casting='unsafe')
-    if debug: print('taxa de mensagens com cada palavra e a resposta escolhida:')
-    if debug: print(vtqmensRespEscPalAval)
-    # taxa de mensagens com a palavra sendo analisada e a resposta diferente da escolhida
-    vqmens_RespEscPalAval = vqmensPalAval - vqmensRespEscPalAval
-    vtqmens_RespEscPalAval = \
-    np.divide(vqmens_RespEscPalAval, vqmensPalAval, out=np.zeros_like(vqmens_RespEscPalAval), \
-    where=vqmensPalAval!=0.0, casting='unsafe')
-    if debug: print('taxa de mensagens com cada palavra e resposta diferente da escolhida:')
-    if debug: print(vtqmens_RespEscPalAval)
-    # gini das mensagens com cada palavra e com a resposta escolhida
-    vGiniMensPalRespEsc = 1 - (pow(vtqmensRespEscPalAval, 2) + pow(vtqmens_RespEscPalAval, 2));
-    # gini negativo não faz sentido, zera
-    # pode ser utilizado o método clip, exemplo:
-    # a: [-1.  2. -5.  9. -3.]
-    # a.clip(min=0)
-    # [ 0.  2.  0.  9.  0.]
-    # no entanto:
-    # a *= (a>0)
-    # [-0.  2. -0.  9. -0.]
-    vGiniMensPalRespEsc = vGiniMensPalRespEsc.clip(min=0)
-    if debug: print('gini das mensagens com cada palavra e com a resposta escolhida:')
-    if debug: print(vGiniMensPalRespEsc)
-
-    #  mensagens sem cada palavra avaliada e qualquer resposta
-    vqmens_PalAval = (mensagens[:,1:]==0).sum(axis=0, dtype=float)
-    # quantidade de mensagens com a resposta escolhida sem cada palavra
-    vqmensRespEsc_PalAval = (respEscMensagens[:,1:]==0).sum(axis=0, dtype=float)
-    if debug: print('mensagens com a resposta escolhida e sem cada palavra:')
-    if debug: print(vqmensRespEsc_PalAval)
-    # taxa de mensagens sem a palavra sendo analisada e com resposta escolhida
-    vtqmensRespEsc_PalAval = np.divide(vqmensRespEsc_PalAval, vqmens_PalAval, \
-     out=np.zeros_like(vqmensRespEsc_PalAval), where=vqmens_PalAval!=0, casting='unsafe')
-    if debug: print('taxa de mensagens com a resposta escolhida e sem cada palavra:')
-    if debug: print(vtqmensRespEsc_PalAval)
-    # taxa de mensagens sem cada palavra sendo avaliada e resposta diferente da escolhida
-    vqmens_RespEsc_PalAval = vqmens_PalAval - vqmensRespEsc_PalAval
-    vtqmens_RespEsc_PalAval = np.divide(vqmens_RespEsc_PalAval, vqmens_PalAval, \
-     out=np.zeros_like(vqmens_RespEsc_PalAval), where=vqmens_PalAval!=0, casting='unsafe')
-    if debug: print('taxa de mensagens sem cada palavra sendo avaliada e resposta diferente da escolhida:')
-    if debug: print(vtqmens_RespEsc_PalAval)
-    # gini das mensagens sem cada palavra sendo avaliada e sem a resposta escolhida
-    vGiniMens_PalAval_RespEsc = 1 - (pow(vtqmensRespEsc_PalAval, 2) + pow(vtqmens_RespEsc_PalAval, 2));
-    # gini negativo não faz sentido, zera
-    vGiniMens_PalAval_RespEsc = vGiniMens_PalAval_RespEsc.clip(min=0)
-    if debug: print('gini das mensagens sem cada palavra sendo avaliada e sem a resposta escolhida:')
-    if debug: print(vGiniMens_PalAval_RespEsc)
-
-    # calculando o gini de cada palavra
-    vGiniPalAval = giniO - ((vGiniMensPalRespEsc * vqmensPalAval / qmens) + \
-    (vGiniMens_PalAval_RespEsc * vqmens_PalAval / qmens))
-    # gini negativo não faz sentido, zera
-    vGiniPalAval = vGiniPalAval.clip(min=0)
-    if debug: print('Gini de cada palavra avaliada:')
-    if debug: print(vGiniPalAval)
-
-    # melhor palavra: a palavra com o maior GINI
-    # TODO ValueError: attempt to get argmax of an empty sequence
-    try:
-        indPalEsc = np.argmax(vGiniPalAval)
-        PalEsc = palavras[indPalEsc +1]
-    except ValueError:
-        # provisoriamente vamos pegar a primeira palavra disponivel
-        PalEsc = [1]
-        indPalEsc = 0
     # inserir nos dados do nó a palavra que divide a árvore
-    nodados_ob.inspalavra(PalEsc)
-    if debug: print('Melhor palavra: ', PalEsc, ' indice: ', indPalEsc +1)
+    nodados_ob.inspalavra(pal_esc)
+    if debug: print('Melhor palavra: ', pal_esc, ' indice: ', ind_pal_esc +1)
     if debug: print('conferindo palavra do no: ', nodados_ob.retpalavra)
     # dividir as mensagens entre as que contém a palavra com melhor GINI e as que não.
-    mensagensPalAval = mensagens[mensagens[:, indPalEsc+1]==1]
-    mensagens_PalAval = mensagens[mensagens[:, indPalEsc+1]==0]
+    mensagensPalAval = mensagens[mensagens[:, ind_pal_esc+1]==1]
+    mensagens_PalAval = mensagens[mensagens[:, ind_pal_esc+1]==0]
     if debug: print('mensagens que contém a melhor palavra:')
     if debug: print(mensagensPalAval)
     if debug: print('mensagens sem a melhor palavra:')
     if debug: print(mensagens_PalAval)
     # remove a palavra dos novos conjuntos de mensagens (esquerdo e direito)
-    mensagensPalAval = np.delete(mensagensPalAval, [indPalEsc+1], axis=1)
-    mensagens_PalAval = np.delete(mensagens_PalAval, [indPalEsc+1], axis=1)
+    mensagensPalAval = np.delete(mensagensPalAval, [ind_pal_esc+1], axis=1)
+    mensagens_PalAval = np.delete(mensagens_PalAval, [ind_pal_esc+1], axis=1)
     # é preciso verificar a invariância das mensagens:
     # comparemos as quantidades de linhas
     if not np.size(mensagens, 0) == np.size(mensagensPalAval, 0) + np.size(mensagens_PalAval, 0):
@@ -291,7 +179,7 @@ def calculano(nodados_ob, debug=False):
         print('-'*79)
         raise  Exception('Divisão de dados com falha!')
     # ajusta a lista de palavras para os nós filhos (esquerdo e direito)
-    palavrasProxno = np.delete(palavras, [indPalEsc+1])
+    palavrasProxno = np.delete(palavras, [ind_pal_esc+1])
     if debug: print('palavras proximo no:')
     if debug: print(palavrasProxno)
     # inicia o calculo dos dados de nós ou folhas
@@ -392,4 +280,263 @@ def calculano(nodados_ob, debug=False):
             if debug: print('folha com resposta(s) (do pai): ', \
             np.unique(mensagens[:,0]), ' a direita do no ', indice)
     return (nodados_ob_esq, nodados_ob_dir)
+
+
+def escolher_melhor_palavra_antigo(mensagens, palavras, q_mens, debug=False):
+
+
+    # escolher uma resposta para iniciar o processo:
+    #  a resposta com maior número de ocorrências.
+    respostas, contagem = np.unique(mensagens[:,0], return_counts=True)
+    respostas_agrupadas = np.column_stack((respostas,contagem))
+    #  selecionar maior resposta agrupada
+    resposta_escolhida = respostas_agrupadas[np.argmax(respostas_agrupadas[:,1:]), 0]
+    if debug: print(' Reposta escolhida: ', resposta_escolhida);
+
+    # calculando gini de O (O = conjunto de mensagens e suas respostas)
+    resposta_escolhida_mensagens = mensagens[mensagens[:,0]==resposta_escolhida]
+    if debug: print('conjunto de mensagens apenas com a resposta escolhida')
+    if debug: print(resposta_escolhida_mensagens)
+    q_mens_resp_esc = np.shape(resposta_escolhida_mensagens)[0]
+    if debug: print('quantidade de mensagens com a resposta escolhida: ', q_mens_resp_esc)
+    # taxa de mensagens com a resposta escolhida (C)
+    t_mens_resp_esc = dividir(q_mens_resp_esc, q_mens);
+    if debug: print('taxa de mensagens com a resposta escolhida: ', t_mens_resp_esc);
+    # taxa de mensagens sem a resposta escolhida (A)
+    t_mens_sem_resp_esc = dividir((q_mens - q_mens_resp_esc), q_mens);
+    if debug: print('taxa de mensagens sem a resposta escolhida: ', t_mens_sem_resp_esc);
+    giniO = 1 - (pow(t_mens_resp_esc, 2) + pow(t_mens_sem_resp_esc, 2));
+    # gini negativo não faz sentido ...
+    giniO = max(0, giniO);
+    if debug: print('GINI de O: ', giniO);
+    # calculando o gini de cada palavra
+    #  mensagens com cada palavra avaliada e qualquer resposta
+    vet_q_mens_pal_aval = (mensagens[:,1:]==1.0).sum(axis=0, dtype=float)
+    if debug: print('mensagens com cada palavra avaliada e qualquer resposta:')
+    if debug: print(vet_q_mens_pal_aval)
+    # quantidade de mensagens com a resposta escolhida com cada palavra
+    vet_q_mens_resp_esc_pal_aval = (resposta_escolhida_mensagens[:,1:]==1.0).sum(axis=0, dtype=float)
+    if debug: print('mensagens com cada palavra e a resposta escolhida:')
+    if debug: print(vet_q_mens_resp_esc_pal_aval)
+    # taxa de mensagens com a palavra sendo analisada e a resposta escolhida
+    #
+    # pode ser usado o método np.divide(), por exemplo:
+    #  comando a = np.array([-1, 0, 1, 2, 3], dtype=float)
+    #  resulta em a = [-1.  0.  1.  2.  3.]
+    #  comando b = np.array([ 0, 0, 0, 2, 2], dtype=float)
+    #  resulta em b = [ 0.  0.  0.  2.  2.]
+    #  então, comando c = np.divide(a, b, out=np.zeros_like(a), where=b!=0)
+    #  resulta em [ 0.   0.   0.   1.   1.5]
+    #
+    #  observe que comando c=a/b gera avisos:
+    #    RuntimeWarning: divide by zero encountered in true_divide
+    #    c=a/b
+    #    RuntimeWarning: invalid value encountered in true_divide
+    #    c=a/b
+    vet_t_q_mens_resp_esc_pal_aval = \
+    np.divide(vet_q_mens_resp_esc_pal_aval, vet_q_mens_pal_aval, out=np.zeros_like(vet_q_mens_resp_esc_pal_aval), \
+    where=vet_q_mens_pal_aval!=0.0, casting='unsafe')
+    if debug: print('taxa de mensagens com cada palavra e a resposta escolhida:')
+    if debug: print(vet_t_q_mens_resp_esc_pal_aval)
+    # taxa de mensagens com a palavra sendo analisada e a resposta diferente da escolhida
+    vet_q_mens_sem_resp_esc_pal_aval = vet_q_mens_pal_aval - vet_q_mens_resp_esc_pal_aval
+    vet_t_q_mens_sem_resp_esc_pal_aval = \
+    np.divide(vet_q_mens_sem_resp_esc_pal_aval, vet_q_mens_pal_aval, out=np.zeros_like(vet_q_mens_sem_resp_esc_pal_aval), \
+    where=vet_q_mens_pal_aval!=0.0, casting='unsafe')
+    if debug: print('taxa de mensagens com cada palavra e resposta diferente da escolhida:')
+    if debug: print(vet_t_q_mens_sem_resp_esc_pal_aval)
+    # gini das mensagens com cada palavra e com a resposta escolhida
+    vet_gini_mens_pal_resposta_escolhida = \
+        1 - (pow(vet_t_q_mens_resp_esc_pal_aval, 2) + pow(vet_t_q_mens_sem_resp_esc_pal_aval, 2));
+    # gini negativo não faz sentido, zera
+    # pode ser utilizado o método clip, exemplo:
+    # a: [-1.  2. -5.  9. -3.]
+    # a.clip(min=0)
+    # [ 0.  2.  0.  9.  0.]
+    # no entanto:
+    # a *= (a>0)
+    # [-0.  2. -0.  9. -0.]
+    vet_gini_mens_pal_resposta_escolhida = vet_gini_mens_pal_resposta_escolhida.clip(min=0)
+    if debug: print('gini das mensagens com cada palavra e com a resposta escolhida:')
+    if debug: print(vet_gini_mens_pal_resposta_escolhida)
+
+    #  mensagens sem cada palavra avaliada e qualquer resposta
+    vet_q_mens_sem_pal_aval = (mensagens[:,1:]==0).sum(axis=0, dtype=float)
+    # quantidade de mensagens com a resposta escolhida sem cada palavra
+    vet_q_mens_resp_esc_sem_pal_aval = (resposta_escolhida_mensagens[:,1:]==0).sum(axis=0, dtype=float)
+    if debug: print('mensagens com a resposta escolhida e sem cada palavra:')
+    if debug: print(vet_q_mens_resp_esc_sem_pal_aval)
+    # taxa de mensagens sem a palavra sendo analisada e com resposta escolhida
+    vet_t_q_mens_resp_esc_sem_pal_aval = np.divide(vet_q_mens_resp_esc_sem_pal_aval, vet_q_mens_sem_pal_aval, \
+     out=np.zeros_like(vet_q_mens_resp_esc_sem_pal_aval), where=vet_q_mens_sem_pal_aval!=0, casting='unsafe')
+    if debug: print('taxa de mensagens com a resposta escolhida e sem cada palavra:')
+    if debug: print(vet_t_q_mens_resp_esc_sem_pal_aval)
+    # taxa de mensagens sem cada palavra sendo avaliada e resposta diferente da escolhida
+    vet_q_mens_sem_resp_esc_sem_pal_aval = vet_q_mens_sem_pal_aval - vet_q_mens_resp_esc_sem_pal_aval
+    vet_t_q_mens_sem_resp_esc_sem_pal_aval = np.divide(vet_q_mens_sem_resp_esc_sem_pal_aval, vet_q_mens_sem_pal_aval, \
+     out=np.zeros_like(vet_q_mens_sem_resp_esc_sem_pal_aval), where=vet_q_mens_sem_pal_aval!=0, casting='unsafe')
+    if debug: print('taxa de mensagens sem cada palavra sendo avaliada e resposta diferente da escolhida:')
+    if debug: print(vet_t_q_mens_sem_resp_esc_sem_pal_aval)
+    # gini das mensagens sem cada palavra sendo avaliada e sem a resposta escolhida
+    vet_gini_q_mens_sem_pal_aval_sem_resp_esc = 1 - (pow(vet_t_q_mens_resp_esc_sem_pal_aval, 2) + pow(vet_t_q_mens_sem_resp_esc_sem_pal_aval, 2));
+    # gini negativo não faz sentido, zera
+    vet_gini_q_mens_sem_pal_aval_sem_resp_esc = vet_gini_q_mens_sem_pal_aval_sem_resp_esc.clip(min=0)
+    if debug: print('gini das mensagens sem cada palavra sendo avaliada e sem a resposta escolhida:')
+    if debug: print(vet_gini_q_mens_sem_pal_aval_sem_resp_esc)
+
+    # calculando o gini de cada palavra
+    vet_gini_pal_aval= giniO - ((vet_gini_mens_pal_resposta_escolhida * vet_q_mens_pal_aval / q_mens) + \
+    (vet_gini_q_mens_sem_pal_aval_sem_resp_esc * vet_q_mens_sem_pal_aval / q_mens))
+    # gini negativo não faz sentido, zera
+    vet_gini_pal_aval= vet_gini_pal_aval.clip(min=0)
+    if debug: print('Gini de cada palavra avaliada:')
+    if debug: print(vGiniPalAval)
+
+    # melhor palavra: a palavra com o maior GINI
+    # TODO ValueError: attempt to get argmax of an empty sequence
+    try:
+        ind_pal_esc = np.argmax(vet_gini_pal_aval)
+        pal_esc = palavras[ind_pal_esc +1]
+    except ValueError:
+        # provisoriamente vamos pegar a primeira palavra disponivel
+        pal_esc = [1]
+        ind_pal_esc = 0
+    return [pal_esc, ind_pal_esc]
+
+def escolher_melhor_palavra(mensagens, palavras, q_mens, debug=False):
+
+    # para cada palavra
+
+    unq, unq_inv = np.unique(mensagens[:, 0], return_inverse=True)
+    out = np.zeros((len(unq), mensagens.shape[1]), dtype=mensagens.dtype)
+    out[:, 0] = unq
+    np.add.at(out[:, 1:], unq_inv, mensagens[:, 1:])
+
+
+    gini_com_resposta = 
+    
+    gini_sem_resposta = 
+
+
+    # escolher uma resposta para iniciar o processo:
+    #  a resposta com maior número de ocorrências.
+    respostas, contagem = np.unique(mensagens[:,0], return_counts=True)
+    respostas_agrupadas = np.column_stack((respostas,contagem))
+    #  selecionar maior resposta agrupada
+    resposta_escolhida = respostas_agrupadas[np.argmax(respostas_agrupadas[:,1:]), 0]
+    if debug: print(' Reposta escolhida: ', resposta_escolhida);
+
+    # calculando gini de O (O = conjunto de mensagens e suas respostas)
+    resposta_escolhida_mensagens = mensagens[mensagens[:,0]==resposta_escolhida]
+    if debug: print('conjunto de mensagens apenas com a resposta escolhida')
+    if debug: print(resposta_escolhida_mensagens)
+    q_mens_resp_esc = np.shape(resposta_escolhida_mensagens)[0]
+    if debug: print('quantidade de mensagens com a resposta escolhida: ', q_mens_resp_esc)
+    # taxa de mensagens com a resposta escolhida (C)
+    t_mens_resp_esc = dividir(q_mens_resp_esc, q_mens);
+    if debug: print('taxa de mensagens com a resposta escolhida: ', t_mens_resp_esc);
+    # taxa de mensagens sem a resposta escolhida (A)
+    t_mens_sem_resp_esc = dividir((q_mens - q_mens_resp_esc), q_mens);
+    if debug: print('taxa de mensagens sem a resposta escolhida: ', t_mens_sem_resp_esc);
+    giniO = 1 - (pow(t_mens_resp_esc, 2) + pow(t_mens_sem_resp_esc, 2));
+    # gini negativo não faz sentido ...
+    giniO = max(0, giniO);
+    if debug: print('GINI de O: ', giniO);
+    # calculando o gini de cada palavra
+    #  mensagens com cada palavra avaliada e qualquer resposta
+    vet_q_mens_pal_aval = (mensagens[:,1:]==1.0).sum(axis=0, dtype=float)
+    if debug: print('mensagens com cada palavra avaliada e qualquer resposta:')
+    if debug: print(vet_q_mens_pal_aval)
+    # quantidade de mensagens com a resposta escolhida com cada palavra
+    vet_q_mens_resp_esc_pal_aval = (resposta_escolhida_mensagens[:,1:]==1.0).sum(axis=0, dtype=float)
+    if debug: print('mensagens com cada palavra e a resposta escolhida:')
+    if debug: print(vet_q_mens_resp_esc_pal_aval)
+    # taxa de mensagens com a palavra sendo analisada e a resposta escolhida
+    #
+    # pode ser usado o método np.divide(), por exemplo:
+    #  comando a = np.array([-1, 0, 1, 2, 3], dtype=float)
+    #  resulta em a = [-1.  0.  1.  2.  3.]
+    #  comando b = np.array([ 0, 0, 0, 2, 2], dtype=float)
+    #  resulta em b = [ 0.  0.  0.  2.  2.]
+    #  então, comando c = np.divide(a, b, out=np.zeros_like(a), where=b!=0)
+    #  resulta em [ 0.   0.   0.   1.   1.5]
+    #
+    #  observe que comando c=a/b gera avisos:
+    #    RuntimeWarning: divide by zero encountered in true_divide
+    #    c=a/b
+    #    RuntimeWarning: invalid value encountered in true_divide
+    #    c=a/b
+    vet_t_q_mens_resp_esc_pal_aval = \
+    np.divide(vet_q_mens_resp_esc_pal_aval, vet_q_mens_pal_aval, out=np.zeros_like(vet_q_mens_resp_esc_pal_aval), \
+    where=vet_q_mens_pal_aval!=0.0, casting='unsafe')
+    if debug: print('taxa de mensagens com cada palavra e a resposta escolhida:')
+    if debug: print(vet_t_q_mens_resp_esc_pal_aval)
+    # taxa de mensagens com a palavra sendo analisada e a resposta diferente da escolhida
+    vet_q_mens_sem_resp_esc_pal_aval = vet_q_mens_pal_aval - vet_q_mens_resp_esc_pal_aval
+    vet_t_q_mens_sem_resp_esc_pal_aval = \
+    np.divide(vet_q_mens_sem_resp_esc_pal_aval, vet_q_mens_pal_aval, out=np.zeros_like(vet_q_mens_sem_resp_esc_pal_aval), \
+    where=vet_q_mens_pal_aval!=0.0, casting='unsafe')
+    if debug: print('taxa de mensagens com cada palavra e resposta diferente da escolhida:')
+    if debug: print(vet_t_q_mens_sem_resp_esc_pal_aval)
+    # gini das mensagens com cada palavra e com a resposta escolhida
+    vet_gini_mens_pal_resposta_escolhida = \
+        1 - (pow(vet_t_q_mens_resp_esc_pal_aval, 2) + pow(vet_t_q_mens_sem_resp_esc_pal_aval, 2));
+    # gini negativo não faz sentido, zera
+    # pode ser utilizado o método clip, exemplo:
+    # a: [-1.  2. -5.  9. -3.]
+    # a.clip(min=0)
+    # [ 0.  2.  0.  9.  0.]
+    # no entanto:
+    # a *= (a>0)
+    # [-0.  2. -0.  9. -0.]
+    vet_gini_mens_pal_resposta_escolhida = vet_gini_mens_pal_resposta_escolhida.clip(min=0)
+    if debug: print('gini das mensagens com cada palavra e com a resposta escolhida:')
+    if debug: print(vet_gini_mens_pal_resposta_escolhida)
+
+    #  mensagens sem cada palavra avaliada e qualquer resposta
+    vet_q_mens_sem_pal_aval = (mensagens[:,1:]==0).sum(axis=0, dtype=float)
+    # quantidade de mensagens com a resposta escolhida sem cada palavra
+    vet_q_mens_resp_esc_sem_pal_aval = (resposta_escolhida_mensagens[:,1:]==0).sum(axis=0, dtype=float)
+    if debug: print('mensagens com a resposta escolhida e sem cada palavra:')
+    if debug: print(vet_q_mens_resp_esc_sem_pal_aval)
+    # taxa de mensagens sem a palavra sendo analisada e com resposta escolhida
+    vet_t_q_mens_resp_esc_sem_pal_aval = np.divide(vet_q_mens_resp_esc_sem_pal_aval, vet_q_mens_sem_pal_aval, \
+     out=np.zeros_like(vet_q_mens_resp_esc_sem_pal_aval), where=vet_q_mens_sem_pal_aval!=0, casting='unsafe')
+    if debug: print('taxa de mensagens com a resposta escolhida e sem cada palavra:')
+    if debug: print(vet_t_q_mens_resp_esc_sem_pal_aval)
+    # taxa de mensagens sem cada palavra sendo avaliada e resposta diferente da escolhida
+    vet_q_mens_sem_resp_esc_sem_pal_aval = vet_q_mens_sem_pal_aval - vet_q_mens_resp_esc_sem_pal_aval
+    vet_t_q_mens_sem_resp_esc_sem_pal_aval = np.divide(vet_q_mens_sem_resp_esc_sem_pal_aval, vet_q_mens_sem_pal_aval, \
+     out=np.zeros_like(vet_q_mens_sem_resp_esc_sem_pal_aval), where=vet_q_mens_sem_pal_aval!=0, casting='unsafe')
+    if debug: print('taxa de mensagens sem cada palavra sendo avaliada e resposta diferente da escolhida:')
+    if debug: print(vet_t_q_mens_sem_resp_esc_sem_pal_aval)
+    # gini das mensagens sem cada palavra sendo avaliada e sem a resposta escolhida
+    vet_gini_q_mens_sem_pal_aval_sem_resp_esc = 1 - (pow(vet_t_q_mens_resp_esc_sem_pal_aval, 2) + pow(vet_t_q_mens_sem_resp_esc_sem_pal_aval, 2));
+    # gini negativo não faz sentido, zera
+    vet_gini_q_mens_sem_pal_aval_sem_resp_esc = vet_gini_q_mens_sem_pal_aval_sem_resp_esc.clip(min=0)
+    if debug: print('gini das mensagens sem cada palavra sendo avaliada e sem a resposta escolhida:')
+    if debug: print(vet_gini_q_mens_sem_pal_aval_sem_resp_esc)
+
+    # calculando o gini de cada palavra
+    vet_gini_pal_aval= giniO - ((vet_gini_mens_pal_resposta_escolhida * vet_q_mens_pal_aval / q_mens) + \
+    (vet_gini_q_mens_sem_pal_aval_sem_resp_esc * vet_q_mens_sem_pal_aval / q_mens))
+    # gini negativo não faz sentido, zera
+    vet_gini_pal_aval= vet_gini_pal_aval.clip(min=0)
+    if debug: print('Gini de cada palavra avaliada:')
+    if debug: print(vGiniPalAval)
+
+    # melhor palavra: a palavra com o maior GINI
+    # TODO ValueError: attempt to get argmax of an empty sequence
+    try:
+        ind_pal_esc = np.argmax(vet_gini_pal_aval)
+        pal_esc = palavras[ind_pal_esc +1]
+    except ValueError:
+        # provisoriamente vamos pegar a primeira palavra disponivel
+        pal_esc = [1]
+        ind_pal_esc = 0
+    return [pal_esc, ind_pal_esc]
+
+
+
+
 
