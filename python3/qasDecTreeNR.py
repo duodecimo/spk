@@ -74,7 +74,7 @@ def main():
     # o progresso do processamento
     # é relatado.
     # valor recomendado 5.0
-    intervaloMostra = 30.0
+    intervaloMostra = 5.0
 
 
     # caminho para persistir a arvore
