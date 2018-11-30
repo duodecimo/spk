@@ -5,6 +5,7 @@ import numpy as np
 from datetime import datetime
 import pickle
 import pathlib
+import sys
 
 # classes
 
@@ -406,6 +407,7 @@ def escolher_melhor_palavra_antigo(mensagens, palavras, q_mens, debug=False):
 
 def escolher_melhor_palavra(mensagens, palavras, q_mens, debug=False):
 
+    superdebug = True
     # para cada palavra
     
     # com resposta
@@ -415,8 +417,10 @@ def escolher_melhor_palavra(mensagens, palavras, q_mens, debug=False):
     out[:, 0] = unq
     # cada palavra: total de cada resposta = 1
     np.add.at(out[:, 1:], unq_inv, mensagens[:, 1:])
+    if superdebug: print('respostas 1: \n', out)
     # gini cada palavra com resposta: [(total de cada resposta = 1) / (total de respostas)] ** 2
     gini_com_resposta = 1 - np.sum(np.power(np.divide(out[:, 1:], q_mens, dtype=float), 2), axis=0)
+    if superdebug: print('gini com resposta: \n', gini_com_resposta)
     # sem resposta
     # troca zeros por um e vice versa nos valores, att: danifica a coluna de respostas
     msr = np.logical_not(mensagens).astype(int)
@@ -428,16 +432,21 @@ def escolher_melhor_palavra(mensagens, palavras, q_mens, debug=False):
     out[:, 0] = unq
     # cada palavra: total de cada resposta = 0
     np.add.at(out[:, 1:], unq_inv, msr[:, 1:])
+    if superdebug: print('respostas 0: \n', out)
     # gini cada palavra com resposta: [(total de cada resposta = 1) / (total de respostas)] ** 2
     gini_sem_resposta = 1 - np.sum(np.power(np.divide(out[:, 1:], q_mens, dtype=float), 2), axis=0)
+    if superdebug: print('gini sem resposta: \n', gini_sem_resposta)
     # obter a média ponderada
     qmp1 = (mensagens[:,1:]==1.0).sum(axis=0, dtype=float)
     qmp0 = (mensagens[:,1:]==0.0).sum(axis=0, dtype=float)
     g1 = np.column_stack((gini_com_resposta, gini_sem_resposta))
     w = np.column_stack((qmp1, qmp0))
     gini_palavras = np.average(g1, axis=1, weights=w)
-    indice_melhor_palavra = np.argmin(gini_palavras)
+    if superdebug: print('gini palavras: \n', gini_palavras)
+    indice_melhor_palavra = minval = np.argmin(gini_palavras)
     melhor_palavra = palavras[indice_melhor_palavra+1]
+    if superdebug: print('melhor palavra e indice: \n', melhor_palavra, ' - ', indice_melhor_palavra)
+    sys.exit()
     return [melhor_palavra, indice_melhor_palavra]
 
 

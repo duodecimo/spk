@@ -15,7 +15,7 @@ from datetime import timedelta
 from multiprocessing.dummy import Pool as ThreadPool
 import pathlib
 
-
+superdebug = 1
 
 # método principal
 
@@ -31,11 +31,11 @@ def main():
     # caso contrário, busca o
     # arquivo Training.csv
     # na subpasta dados.
-    executarTeste = False
+    executarTeste = True
 
     # define as dimensões da
     # matriz de teste
-    tamTeste = [500,60]
+    tamTeste = [8,4]
 
     # se verdadeiro o programa embaralha
     # e divide o arquivo de dados em
@@ -115,7 +115,7 @@ def main():
         # x, y = 40,20
         mensagens=np.random.randint(2, size=(tamTeste[0], tamTeste[1]))
         # primeira linha, palavras
-        mensagens[:,0] = np.random.randint(50, 900, size=tamTeste[0])
+        mensagens[:,0] = np.random.randint(50, 50+tamTeste[0]/2, size=tamTeste[0])
         palavras=['resposta']
         for i in range(np.size(mensagens, 1) -1):
             palavras.append('pal' + str(i+1))
