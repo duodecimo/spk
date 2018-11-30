@@ -15,8 +15,6 @@ from datetime import timedelta
 from multiprocessing.dummy import Pool as ThreadPool
 import pathlib
 
-superdebug = 1
-
 # método principal
 
 def main():
@@ -31,7 +29,7 @@ def main():
     # caso contrário, busca o
     # arquivo Training.csv
     # na subpasta dados.
-    executarTeste = True
+    executarTeste = False
 
     # define as dimensões da
     # matriz de teste
@@ -51,7 +49,7 @@ def main():
 
     # máximo de nós a paralelizar
     # a cada pool
-    numMaxnosPar = 1000
+    num_max_nos_par = 1000
 
     # inicialização dos processos do programa
 
@@ -89,13 +87,13 @@ def main():
     # caso seja nescessário persistir
     #parcialmente a arvore para liberar memória
     arvoresPers = []
-    numnosPersistidos = 0
+    num_nos_contabPersistidos = 0
     # uma lista de nós a serem processados
-    filaDenos = []
-    filaDenosProcessados = []
-    # o primeiro nodados é pré processado,
+    fila_de_nos_dados = []
+    fila_de_nos_dados_processados = []
+    # o primeiro no_dados_ob é pré processado,
     # por exemplo, recebe indice 0 (raiz).
-    # os próximos são gerados no calculo do nodados,
+    # os próximos são gerados no calculo do no_dados_ob,
     # o indice é calculado usando a formula
     # indice esquerda = 2* indice atual + 1
     # indice direita = 2* indice atual + 2
@@ -150,7 +148,7 @@ def main():
         # aceitando overfiting
         treinos = testes = mensagens
 
-    totMensO = len(treinos)
+    total_de_mensagens_no_sistema = len(treinos)
     print('mensagens: ', len(treinos))
     print('palavras: ', len(palavras))
 
@@ -163,119 +161,125 @@ def main():
     ultimapass = timer()
 
     # dados do nó raiz
-    #nodados = nodados(indice, palavras, treinos)
-    nodados = qasmod.nodados(0, palavras, treinos)
-    filaDenos.append(nodados)
-    numnos = 0
-    numfolhas = 0
-    numMensfolhas = 0
+    #no_dados_ob = no_dados_ob(indice, palavras, treinos)
+    no_dados_ob = qasmod.nodados(0, palavras, treinos)
+    fila_de_nos_dados.append(no_dados_ob)
+    num_nos_contab = 0
+    num_folhas_contab = 0
+    num_mens_folhas_contab = 0
+    max_div_mens_contab = 0
     while True:
         if paralelizar:
             # vamos tentar usar uma pool para
             # processamento paralelo dos dados dos nós.
             pool = ThreadPool(4)
             # pelas limitaçoes da máquina,
-            # quero processar no máximo numMaxnosPar  dados de nós de cada vez
-            maxProcessos = min(numMaxnosPar, len(filaDenos))
-            filaDenosParalelos = []
-            for i in range(maxProcessos):
-                filaDenosParalelos.append(filaDenos.pop(0))
-            filaDenosProcessados = pool.map(qasmod.calcula_no, filaDenosParalelos)
+            # quero processar no máximo num_max_nos_par  dados de nós de cada vez
+            max_processos = min(num_max_nos_par, len(fila_de_nos_dados))
+            fila_de_nos_dados_paralelos = []
+            for i in range(max_processos):
+                fila_de_nos_dados_paralelos.append(fila_de_nos_dados.pop(0))
+            fila_de_nos_dados_processados = pool.map(qasmod.calcula_no, fila_de_nos_dados_paralelos)
             pool.close()
             pool.join()
-            if debug: print('Resultado do pool: ',  len(filaDenosProcessados))
+            if debug: print('Resultado do pool: ',  len(fila_de_nos_dados_processados))
             # vamos processar as filas
             ## colocar o(s) nó(s) calculado(s) na árvore
-            for i in range(len(filaDenosParalelos)):
-                nodados = filaDenosParalelos.pop(0)
-                arvore[nodados.retindice] = qasmod.no(nodados)
-                numnos += 1
-                if debug: print('arvore recebe palavra: ', nodados.retpalavra)
             # os dados de nós retornados que não forem folhas
             # devem ser acrescentados à fila de dados de nós,
             # caso contrário vão para a árvore
-            for i in range(len(filaDenosProcessados)):
-                (nodadosEsq, nodadosDir) = filaDenosProcessados.pop(0)
-                nodados = nodadosEsq
-                if nodados.efolha:
-                    arvore[nodados.retindice] = qasmod.no(nodados)
-                    numfolhas += 1
+            for i in range(len(fila_de_nos_dados_processados)):
+                # processa o par de dados retornado pelo calculo
+                (no_dados_ob_esq, no_dados_ob_dir) = fila_de_nos_dados_processados.pop(0)
+                no_dados_ob = no_dados_ob_esq
+                if no_dados_ob.efolha:
+                    arvore[no_dados_ob.retindice] = qasmod.no(no_dados_ob)
+                    num_folhas_contab += 1
                     if debug: print('arvore recebe folha')
                 else:
-                    filaDenos.append(nodados)
-                nodados = nodadosDir
-                if nodados.efolha:
-                    arvore[nodados.retindice] = qasmod.no(nodados)
-                    numfolhas += 1
+                    fila_de_nos_dados.append(no_dados_ob)
+                no_dados_ob = no_dados_ob_dir
+                if no_dados_ob.efolha:
+                    arvore[no_dados_ob.retindice] = qasmod.no(no_dados_ob)
+                    num_folhas_contab += 1
                     if debug: print('arvore recebe folha')
                 else:
-                    filaDenos.append(nodados)
+                    fila_de_nos_dados.append(no_dados_ob)
         else: # não parelelizar
-            nodados = filaDenos.pop(0)
-            (nodadosEsq, nodadosDir) = qasmod.calcula_no(nodados, debug)
+            no_dados_ob = fila_de_nos_dados.pop(0)
+            (no_dados_ob_esq, no_dados_ob_dir) = qasmod.calcula_no(no_dados_ob, debug)
             # podemos mais uma vez verificar a invariancia
             # dos dados
-            assert np.size(nodados.retmensagens, 0) == \
-            np.size(nodadosEsq.retmensagens, 0) + np.size(nodadosDir.retmensagens, 0)
+            assert np.size(no_dados_ob.retmensagens, 0) == \
+            np.size(no_dados_ob_esq.retmensagens, 0) + np.size(no_dados_ob_dir.retmensagens, 0)
             # coloca o nó processado na árvore
-            arvore[nodados.retindice] = qasmod.no(nodados)
-            # na verdade, pode ser um nó ou folha!
-            if nodados.efolha:
-                numfolhas +=1
-                numMensfolhas += np.size(nodados.retmensagens, 0)
+            arvore[no_dados_ob.retindice] = qasmod.no(no_dados_ob)
+            # contabiliza o novo nó da árvore
+            num_nos_contab += 1
+            # processa filhos
+            no_dados_ob = no_dados_ob_esq
+            # podemos contabilizar para cada período
+            # a divisão máxima de nós observada
+            qmo = np.size(no_dados_ob.retmensagens, 0)
+            if qmo > max_div_mens_contab:
+                max_div_mens_contab = qmo
+            if no_dados_ob.efolha:
+                arvore[no_dados_ob.retindice] = qasmod.no(no_dados_ob)
+                num_folhas_contab += 1
+                num_mens_folhas_contab += qmo
+                total_de_mensagens_no_sistema -= qmo
+                if debug: print('arvore recebe folha')
             else:
-                numnos += 1
-                # se é nó, processa filhos
-                nodados = nodadosEsq
-                if nodados.efolha:
-                    arvore[nodados.retindice] = qasmod.no(nodados)
-                    numfolhas += 1
-                    numMensfolhas += np.size(nodados.retmensagens, 0)
-                    if debug: print('arvore recebe folha')
-                else:
-                    filaDenos.append(nodados)
-                nodados = nodadosDir
-                if nodados.efolha:
-                    arvore[nodados.retindice] = qasmod.no(nodados)
-                    numfolhas += 1
-                    numMensfolhas += np.size(nodados.retmensagens, 0)
-                    if debug: print('arvore recebe folha')
-                else:
-                    filaDenos.append(nodados)
-            if not len(arvore) == numnos+numfolhas:
+                fila_de_nos_dados.append(no_dados_ob)
+            no_dados_ob = no_dados_ob_dir
+            # podemos contabilizar para cada período
+            # a divisão máxima de nós observada
+            qmo = np.size(no_dados_ob.retmensagens, 0)
+            if qmo > max_div_mens_contab:
+                max_div_mens_contab = qmo
+            if no_dados_ob.efolha:
+                arvore[no_dados_ob.retindice] = qasmod.no(no_dados_ob)
+                num_folhas_contab += 1
+                num_mens_folhas_contab += qmo
+                total_de_mensagens_no_sistema -= qmo
+                if debug: print('arvore recebe folha')
+            else:
+                fila_de_nos_dados.append(no_dados_ob)
+            if not len(arvore) == num_nos_contab+num_folhas_contab:
                 print('largura da arvore: ', len(arvore))
-                print('numero de nós: ', numnos)
-                print('numero de folhas: ', numfolhas)
+                print('numero de nós: ', num_nos_contab)
+                print('numero de folhas: ', num_folhas_contab)
                 raise Exception('tamanho da arvore incompatível!')
                 #TODO programa interrompido aquí, 26/nov/2018
-        # totalização da rodada
+        # contabilização da rodada
         if (timer() - ultimapass) >= intervaloMostra:
             usoMemoria = py.memory_info()[0]/2.**30  # memory use in GB...I think
             fim = timer()
             print('-'*79)
             print('uso de memoria(GB):', usoMemoria)
             print('Tempo ate agora: ', str(timedelta(seconds=fim - inicio)))
-            print('total de nós : ', numnos)
-            print('total de folhas: ', numfolhas, ' consumiram ', numMensfolhas, 'mensagens')
-            print('mensagens a consumir: ', totMensO, ' mensagens', 'invariancia: ', totMensO - numMensfolhas)
-            print('total na arvore : ', numnos + numfolhas)
-            print('nos na fila: ', len(filaDenos))
-            print('maior numero de linhas em um no na rodada: ', qmaxmens)
+            print('total de nós : ', num_nos_contab)
+            print('total de folhas: ', num_folhas_contab, ' consumiram ', num_mens_folhas_contab, 'mensagens')
+            print('total na arvore : ', num_nos_contab + num_folhas_contab)
+            print('mensagens a consumir: ', total_de_mensagens_no_sistema)
+            print('nos na fila: ', len(fila_de_nos_dados))
+            print('maior divisão de mensagens no período: ', max_div_mens_contab)
+            max_div_mens_contab = 0
             print('-'*79)
             ultimapass = timer()
-            qmaxmens = 0
-        if debug: print('Ao fim da repeticao temos para processar: ', len(filaDenos))
+        if debug: print('Ao fim da repeticao temos para processar: ', len(fila_de_nos_dados))
         # se a fila de dados de nos estiver vazia encerra
-        if len(filaDenos)==0:
+        if len(fila_de_nos_dados)==0:
             usoMemoria = py.memory_info()[0]/2.**30  # memory use in GB...I think
             fim = timer()
+            total_de_mensagens_no_sistema = len(treinos)
             print('='*79)
             print('Processamento encerrado!')
             print('uso de memoria(GB):', usoMemoria)
-            print('total de nós : ', numnos)
-            print('total de folhas: ', numfolhas)
-            print('total na árvore: ', numnos + numfolhas)
-            print('total de mensagens em O: ', totMensO)
+            print('total de nós : ', num_nos_contab)
+            print('total de folhas: ', num_folhas_contab)
+            print('total na árvore: ', num_nos_contab + num_folhas_contab)
+            print('total de mensagens em O: ', total_de_mensagens_no_sistema)
             print('Tempo de processamento: ', str(timedelta(seconds=fim - inicio)))
             print('='*79)
             break
@@ -285,7 +289,7 @@ def main():
         if len(arvore) > limitePersArv:
             if debug: print('persistindo parcialmente a arvore.')
             arvoresPers.append(qasmod.salvar_arvore(arvore))
-            numnosPersistidos += len(arvore)
+            num_nos_contabPersistidos += len(arvore)
             arvore = {}
 
     # caso a árvore tenha sido persistida em partes
