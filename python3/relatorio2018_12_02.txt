@@ -1,0 +1,121 @@
+1)
+
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+ nodados_dir_resp:
+ [1306 1577]
+ count_nodados_dir_resp
+ [1 2]
+ resultado
+ [1577]
+ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+ ===============================================================================
+ Processamento encerrado!
+ uso de memoria(GB): 0.4960746765136719
+ total de nós :  11524
+ total de folhas:  11525
+ total na árvore:  23049
+ total de mensagens em O:  10547
+ Tempo de processamento:  0:00:19.143506
+ ===============================================================================
+ ###############################################################################
+ método utilizado para escolher a melhor palavra:  máxima divisão
+ utilizando os dados de treinamento (espera-se overfitting)
+ testadas:  10547
+  acertos:  10546
+  erros:  1
+  sem resposta:  0
+ acuidade:  99.9905186308903
+ Tempo de processamento:  0:00:32.169621
+ ###############################################################################
+ ###############################################################################
+ método utilizado para escolher a melhor palavra:  máxima divisão
+ utilizando os dados de teste, 10 % dos dados originais separados aleatoriamente
+ testadas:  1172
+  acertos:  391
+  erros:  770
+  sem resposta:  11
+ acuidade:  33.67786391042205
+ Tempo de processamento:  0:00:34.057785
+ ###############################################################################
+
+
+2)
+
+-------------------------------------------------------------------------------
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+nodados_dir_resp:
+[1306 1577]
+count_nodados_dir_resp
+[1 2]
+resultado
+[1577]
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+===============================================================================
+Processamento encerrado!
+uso de memoria(GB): 0.46793365478515625
+total de nós :  8466
+total de folhas:  8467
+total na árvore:  16933
+total de mensagens em O:  10547
+Tempo de processamento:  0:01:37.356381
+===============================================================================
+###############################################################################
+método utilizado para escolher a melhor palavra:  gini de uma resposta
+utilizando os dados de treinamento (espera-se overfitting)
+testadas:  10547
+ acertos:  10546
+ erros:  1
+ sem resposta:  0
+acuidade:  99.9905186308903
+Tempo de processamento:  0:02:29.808409
+###############################################################################
+###############################################################################
+método utilizado para escolher a melhor palavra:  gini de uma resposta
+utilizando os dados de teste, 10 % dos dados originais separados aleatoriamente
+testadas:  1172
+ acertos:  585
+ erros:  586
+ sem resposta:  1
+acuidade:  49.95730145175064
+Tempo de processamento:  0:02:36.498980
+###############################################################################
+
+3)
+
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+nodados_dir_resp:
+[1306 1577]
+count_nodados_dir_resp
+[1 2]
+resultado
+[1577]
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+===============================================================================
+Processamento encerrado!
+uso de memoria(GB): 0.4951057434082031
+total de nós :  11864
+total de folhas:  11865
+total na árvore:  23729
+total de mensagens em O:  10547
+Tempo de processamento:  0:03:58.492627
+===============================================================================
+###############################################################################
+método utilizado para escolher a melhor palavra:  gini total
+utilizando os dados de treinamento (espera-se overfitting)
+testadas:  10547
+ acertos:  10546
+ erros:  1
+ sem resposta:  0
+acuidade:  99.9905186308903
+Tempo de processamento:  0:04:12.301216
+###############################################################################
+###############################################################################
+método utilizado para escolher a melhor palavra:  gini total
+utilizando os dados de teste, 10 % dos dados originais separados aleatoriamente
+testadas:  1172
+ acertos:  396
+ erros:  775
+ sem resposta:  1
+acuidade:  33.81725021349274
+Tempo de processamento:  0:04:14.303929
+###############################################################################
