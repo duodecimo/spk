@@ -17,7 +17,7 @@ class No():
 print("Alo, python!")
 
 no = No()
-no.inserirPalavra("Alo, no!")
+no.inserirPalavra("Alo, No!")
 ret = no.retornarPalavra()
 print(ret)
 
@@ -32,7 +32,7 @@ print(a)
 a = np.array([[1,2,3],[4,5,6]])
 print('array sizes')
 print(a)
-print('no dims')
+print('No dims')
 print(np.size(a))
 print('dim 1')
 print(np.size(a,1))

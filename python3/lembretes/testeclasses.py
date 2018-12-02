@@ -8,5 +8,5 @@ print('palavra: ', nd.retpalavra())
 
 no = classes.no(nd)
 
-print('palavra no nó: ', no.retpalavra)
+print('palavra No nó: ', no.retpalavra)
 

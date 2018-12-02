@@ -1,5 +1,5 @@
 class nodados:
-    # possui atributos para processar e gerar o no da arvore
+    # possui atributos para processar e gerar o No da arvore
 
     def __init__(self, indice, palavras, mensagens):
         self.__indice = indice    # vai ser o índice do dicionario arvore

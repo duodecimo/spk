@@ -1,25 +1,26 @@
-#modulos
+# modulos
 
-from timeit import default_timer as timer
-import numpy as np
-from datetime import datetime
-import pickle
 import pathlib
-import sys
+import pickle
+from datetime import datetime
+from datetime import timedelta
+from timeit import default_timer as timer
+
+import numpy as np
+
 
 # classes
 
-class nodados:
+class NoDados:
 
-    
-    # possui atributos para processar e gerar o no da arvore
+    # possui atributos para processar e gerar o No da arvore
     def __init__(self, indice, palavras, mensagens):
-        self.__indice = indice          # vai ser o indice do dicionario arvore
-        self.__palavra = None           # a melhor palavra que divide os nós
-        self.__respostas = None         # lista de respostas
-        self.__mensagens = mensagens    # matriz de mensagens a serem processadas
-        self.__palavras = palavras      # vetor de palavras a serem processadas
-        self.__folha = False            # indica se um nó é ou não folha
+        self.__indice = indice  # vai ser o indice do dicionario arvore
+        self.__palavra = None  # a melhor palavra que divide os nós
+        self.__respostas = None  # lista de respostas
+        self.__mensagens = mensagens  # matriz de mensagens a serem processadas
+        self.__palavras = palavras  # vetor de palavras a serem processadas
+        self.__folha = False  # indica se um nó é ou não folha
 
     @property
     def retindice(self):
@@ -58,13 +59,13 @@ class nodados:
         return self.__folha
 
 
-class no():
+class No:
 
     # é o objeto do dicionário árvore
-    # recebe como parâmetro um objeto nodados,
+    # recebe como parâmetro um objeto NoDados,
     # de onde extrai todos seus atributos
     def __init__(self, nodados_ob):
-        self.__palavra = nodados_ob.retpalavra   # utilizada para dividir a árvore, ausente em folhas
+        self.__palavra = nodados_ob.retpalavra  # utilizada para dividir a árvore, ausente em folhas
         self.__respostas = nodados_ob.retrespostas
         self.__folha = nodados_ob.efolha
 
@@ -80,128 +81,121 @@ class no():
     def efolha(self):
         return self.__folha
 
+
 # métodos auxiliares
 
-def dividir(x, y):
-    if y==0: return 0
-    return x/y
+def dividir(x, y: object):
+    if y == 0:
+        return 0
+    return x / y
+
 
 def salvar_arvore(arvore, caminho):
     comp = datetime.now().strftime('%Y_%m_%d_%H_%M_%S_%f')[:-2]
     # utiliza a forma arvore_<timestamp>.pkl para o arquivo,
     # garantindo a unicidade do nome em seguidas
     # execuções do programa.
-    nome_arq =  caminho +  'arvore_' + comp + '.pkl'
+    nome_arq = caminho + 'arvore_' + comp + '.pkl'
     # utiliza apenas arvore.pfl para o arquivo,
     # sempre sobrescrevendo o anterior, garantindo
     # desta forma acesso com um nome garantido
     # à última árvore gerada.
-    nome_arq2 =  caminho +  'arvore.pkl'
-    arq = open(nome_arq,'wb')
+    nome_arq2 = caminho + 'arvore.pkl'
+    arq = open(nome_arq, 'wb')
     pickle.dump(arvore, arq, pickle.HIGHEST_PROTOCOL)
     arq.close()
     try:
         pathlib.Path(nome_arq2).unlink()
     except FileNotFoundError:
         pass
-    arq = open(nome_arq2,'wb')
+    arq = open(nome_arq2, 'wb')
     pickle.dump(arvore, arq, pickle.HIGHEST_PROTOCOL)
     arq.close()
     return nome_arq
 
-def carregar_arvore(caminho, arq='arvore.pkl'):
-    arqref = open(arq,'rb')
+
+def carregar_arvore(arq='arvore.pkl'):
+    arqref = open(arq, 'rb')
     arvore = pickle.load(arqref)
     arqref.close()
     return arvore
 
+
 def dividir_arvore(arvore):
     n = len(arvore) // 2
-    i = iter(arvore.items())      # alternatively, i = d.iteritems() works in Python 2
+    i = iter(arvore.items())  # alternatively, i = d.iteritems() works in Python 2
 
-    arvore1 = dict(itertools.islice(i, n))   # grab first n items
-    arvore2 = dict(i)                        # grab the rest
+    arvore1 = dict(itertools.islice(i, n))  # grab first n items
+    arvore2 = dict(i)  # grab the rest
 
     return arvore1, arvore2
 
 
 def calcula_no(nodados_ob, debug=False):
-
     indice = nodados_ob.retindice
     palavras = nodados_ob.retpalavras
     mensagens = nodados_ob.retmensagens
 
     fim = timer()
     q_mens = np.shape(mensagens)[0]
-    
-    #if q_mens > qmaxmens:
+
+    # if q_mens > qmaxmens:
     #    qmaxmens = q_mens
 
     if debug:
-        usoMemoria = py.memory_info()[0]/2.**30  # memory use in GB...I think
-        print('uso de memoria:', usoMemoria)
+        uso_memoria = py.memory_info()[0] / 2. ** 30  # memory use in GB...I think
+        print('uso de memoria:', uso_memoria)
         print('')
-        print('Ate o no ', indice, ': ')
+        print('Ate o No ', indice, ': ')
         print(' tempo (em segundos): ', str(timedelta(seconds=fim - inicio)))
         print('quantidade de mensagens: ', q_mens)
-        print('-'*79)
+        print('-' * 79)
 
     # escolher melhor palavra
-    #[pal_esc, ind_pal_esc] = escolher_melhor_palavra_antigo(mensagens, palavras, q_mens, debug)
-    [pal_esc, ind_pal_esc] = escolher_melhor_palavra(mensagens, palavras, q_mens, debug=False)
+    # [pal_esc, ind_pal_esc] = escolher_melhor_palavra_gini_uma_resposta(mensagens, palavras, q_mens, debug)
+    # [pal_esc, ind_pal_esc] = escolher_melhor_palavra_gini_total(mensagens, palavras, q_mens, debug=False)
+    [pal_esc, ind_pal_esc] = escolher_melhor_palavra_divisao_maxima(mensagens, palavras)
 
     # inserir nos dados do nó a palavra que divide a árvore
     nodados_ob.inspalavra(pal_esc)
-    if debug: print('Melhor palavra: ', pal_esc, ' indice: ', ind_pal_esc +1)
-    if debug: print('conferindo palavra do no: ', nodados_ob.retpalavra)
+    if debug: print('Melhor palavra: ', pal_esc, ' índice: ', ind_pal_esc + 1)
+    if debug: print('conferindo palavra do objeto NoDados: ', nodados_ob.retpalavra)
     # dividir as mensagens entre as que contém a palavra com melhor GINI e as que não.
-    mensagens_pal_aval = mensagens[mensagens[:, ind_pal_esc+1]==1]
-    mensagens_sem_pal_aval = mensagens[mensagens[:, ind_pal_esc+1]==0]
-    if debug: print('mensagens que contém a melhor palavra: (', np.size(mensagens_pal_aval, 0), ' linhas)')
-    if debug: print(mensagens_pal_aval)
+    mensagens_com_pal_aval = mensagens[mensagens[:, ind_pal_esc + 1] == 1]
+    mensagens_sem_pal_aval = mensagens[mensagens[:, ind_pal_esc + 1] == 0]
+    if debug: print('mensagens que contém a melhor palavra: (', np.size(mensagens_com_pal_aval, 0), ' linhas)')
+    if debug: print(mensagens_com_pal_aval)
     if debug: print('mensagens sem a melhor palavra: (', np.size(mensagens_sem_pal_aval, 0), ' linhas)')
     if debug: print(mensagens_sem_pal_aval)
     # remove a palavra dos novos conjuntos de mensagens (esquerdo e direito)
-    mensagens_pal_aval = np.delete(mensagens_pal_aval, [ind_pal_esc+1], axis=1)
-    mensagens_sem_pal_aval = np.delete(mensagens_sem_pal_aval, [ind_pal_esc+1], axis=1)
-    # é preciso verificar a invariância das mensagens:
-    # comparemos as quantidades de linhas
-    if not np.size(mensagens, 0) == np.size(mensagens_pal_aval, 0) + np.size(mensagens_sem_pal_aval, 0):
-        print('*'*79)
-        print('-'*79)
-        print('Erro de invariância no nó ', nodados_ob.retindice)
-        print('pai: ', np.size(mensagens, 0))
-        print('esq: ', np.size(mensagens_pal_aval, 0))
-        print('dir: ', np.size(mensagens_sem_pal_aval, 0))
-        print('*'*79)
-        print('-'*79)
-        raise  Exception('Divisão de dados com falha!')
+    mensagens_com_pal_aval = np.delete(mensagens_com_pal_aval, [ind_pal_esc + 1], axis=1)
+    mensagens_sem_pal_aval = np.delete(mensagens_sem_pal_aval, [ind_pal_esc + 1], axis=1)
     # ajusta a lista de palavras para os nós filhos (esquerdo e direito)
-    palavras_prox_no = np.delete(palavras, [ind_pal_esc+1])
+    palavras_prox_no = np.delete(palavras, ind_pal_esc + 1)
     if debug: print('palavras para o próximo nó:')
     if debug: print(palavras_prox_no)
     # inicia o calculo dos dados de nós ou folhas
-    # à esquerda e a direata que serão retornados.
+    # à esquerda e a direita que serão retornados.
 
-    # nodados(indice, palavras, mensagens)
-    nodados_ob_esq = nodados(indice*2+1, palavras_prox_no, mensagens_pal_aval)
-    nodados_ob_dir = nodados(indice*2+2, palavras_prox_no, mensagens_sem_pal_aval)
+    # NoDados(indice, palavras, mensagens)
+    nodados_ob_esq = NoDados(indice * 2 + 1, palavras_prox_no, mensagens_com_pal_aval)
+    nodados_ob_dir = NoDados(indice * 2 + 2, palavras_prox_no, mensagens_sem_pal_aval)
     # verifica a expansão da árvore:
-    # caso não hajam mais mensagens, ou caso só fique uma resposta,
-    # para de expandir
-    
+    # caso não hajam mais mensagens ou apenas uma mensagem, e/ou
+    # caso só fique uma resposta ou nenhuma, para de expandir e cria folha
+
     # à esquerda
-    
+
     # primeiro preciso verificar se há menos que duas respostas,
     # melhor agrupar os dados pelas respostas (primeira coluna) 
     # e verificar se há menos de duas linhas, caso sim,
     # é folha!
-    # a razão é haver consenso com relação à resposta.
+    # a razão é haver consenso com relação à resposta (ou ausência de uma).
 
     # segundo preciso verificar o numero de linhas de mensagens,
     # se houver menos que duas mensagens é folha!
     # melhor usar a dimensão 0 (conta linhas)  de matriz para isso.
-    # a razão é que não é possível prossseguir dividindo,
+    # a razão é que não é possível prosseguir dividindo,
     # existe consenso para a resposta.
 
     # np.unique(), pode resulta em um vetor:
@@ -214,9 +208,9 @@ def calcula_no(nodados_ob, debug=False):
     #   np.unique(a[:,0]) = [1 2]
     #   np.size(np.unique(a[:,0])) = 2
 
-    # np.unique(mensagens_pal_aval[:,0] retorna um vetor com
+    # np.unique(mensagens_com_pal_aval[:,0]) retorna um vetor com
     # os elementos únicos da primeira coluna, as respostas
-    nodados_esq_resp = np.unique(mensagens_pal_aval[:,0])
+    nodados_esq_resp, count_nodados_esq_resp = np.unique(mensagens_com_pal_aval[:, 0],return_counts=True)
     # np.size(), resulta em um inteiro:
     # exemplo com matriz:
     # a = [[1 2 3]
@@ -231,17 +225,17 @@ def calcula_no(nodados_ob, debug=False):
     #  np.size(a) =  3
     #  np.size(a,0)) =  3
     #  np.size(a,1)) = IndexError: tuple index out of range
-    if np.size(nodados_esq_resp) < 2 or np.size(mensagens_pal_aval, 0) <2 \
-        or np.size(mensagens_pal_aval, 1) <2:
+    if np.size(nodados_esq_resp) < 2 or np.size(mensagens_com_pal_aval, 0) < 2 \
+            or np.size(mensagens_com_pal_aval, 1) < 2:
         # np.size(nodados_esq_resp) dá o número de respostas.
         #  Se o resultado é menor que 2, indica uma ou
         #  nenhuma resposta: é folha!
         #
-        # np.size(mensagens_pal_aval, 0) dá o número
+        # np.size(mensagens_com_pal_aval, 0) dá o número
         #  de linhas: se for <2, não existem mais mensagens,
         #  ou existe apenas uma mensagem: é um nó folha!
         #
-        # np.size(mensagens_pal_aval, 1) dá o número de colunas
+        # np.size(mensagens_com_pal_aval, 1) dá o número de colunas
         #  na matriz. a primeira coluna é a de respostas, logo
         #  o numero de palavras é o número de colunas -1.
         #  portanto, numero de colunas <2 significa
@@ -249,54 +243,73 @@ def calcula_no(nodados_ob, debug=False):
         #  é uma folha!
         nodados_ob_esq.atribfolha(True)
         # colocamos as respostas na folha (e somente nelas)
-        # vão ser sempre vetores, no caso ideal, com apenas
+        # vão ser sempre vetores, No caso ideal, com apenas
         # um valor.
-        if np.size(nodados_esq_resp) > 0:
-            nodados_ob_esq.insrespostas(nodados_esq_resp)
-            if debug: print('folha com resposta(s): ', nodados_esq_resp, \
-            ' a esquerda do no ', indice)
+        # vamos verificar a presença de mais de uma resposta
+        if np.size(nodados_esq_resp) > 1:
+            # escolher a resposta que ocorre mais vezes
+            nd_respostas, contagem = np.unique(mensagens_com_pal_aval[:, 0], return_counts=True)
+            nodados_ob_esq.insrespostas([nodados_esq_resp[np.argmax(count_nodados_esq_resp)]])
+
+            print('x'*79)
+            print('nodados_esq_resp: ')
+            print(nodados_esq_resp)
+            print('count_nodados_esq_resp')
+            print(count_nodados_esq_resp)
+            print('resultado')
+            print([nodados_esq_resp[np.argmax(count_nodados_esq_resp)]])
+            print('x'*79)
+
         else:
-            # o ideal é quando a folha tem uma resposta,
-            # mas, se não tiver:
-            # colocamos as respotas do no pai
-            nodados_ob_esq.insrespostas(np.unique(mensagens[:,0]))
-            if debug: print('folha com resposta(s) (do pai): ', \
-            np.unique(mensagens[:,0]), ' a esquerda do no ', indice)
+            nodados_ob_esq.insrespostas(nodados_esq_resp)
+        # provisoriamente anular o desvio acima
+        # nodados_ob_esq.insrespostas(nodados_esq_resp)
+        if debug: print('folha com resposta(s): ', nodados_esq_resp,
+                        ' a esquerda do No ', indice)
     # à direita
     # (obs.: as explicações são as mesmas dadas acima
     # para o processamento de expansão à esquerda).
-    nodados_dir_resp = np.unique(mensagens_sem_pal_aval[:,0])
-    if np.size(nodados_dir_resp) < 2 or np.size(mensagens_sem_pal_aval, 0) <2 \
-        or np.size(mensagens_sem_pal_aval, 1) <2:
+    nodados_dir_resp, count_nodados_dir_resp = np.unique(mensagens_sem_pal_aval[:, 0], return_counts=True)
+    if np.size(nodados_dir_resp) < 2 or np.size(mensagens_sem_pal_aval, 0) < 2 \
+            or np.size(mensagens_sem_pal_aval, 1) < 2:
         nodados_ob_dir.atribfolha(True)
-        if np.size(nodados_dir_resp) >0:
-            nodados_ob_dir.insrespostas(nodados_dir_resp)
-            if debug: print('folha com resposta(s): ', \
-            nodados_dir_resp, ' a direita do no ', indice)
+        # vamos verificar a presença de mais de uma resposta
+        if np.size(nodados_dir_resp) > 1:
+            # escolher a resposta que ocorre mais vezes
+            nodados_ob_dir.insrespostas([nodados_dir_resp[np.argmax(count_nodados_dir_resp)]])
+
+            print('x'*79)
+            print('nodados_dir_resp: ')
+            print(nodados_dir_resp)
+            print('count_nodados_dir_resp')
+            print(count_nodados_dir_resp)
+            print('resultado')
+            print([nodados_dir_resp[np.argmax(count_nodados_dir_resp)]])
+            print('x'*79)
+
         else:
-            nodados_ob_dir.insrespostas(np.unique(mensagens[:,0]))
-            if debug: print('folha com resposta(s) (do pai): ', \
-            np.unique(mensagens[:,0]), ' a direita do no ', indice)
-    return (nodados_ob_esq, nodados_ob_dir)
+            nodados_ob_dir.insrespostas(nodados_dir_resp)
+        if debug: print('folha com resposta(s): ',
+                        nodados_dir_resp, ' a direita do No ', indice)
+    return [nodados_ob_esq, nodados_ob_dir]
 
 
-def escolher_melhor_palavra(mensagens, palavras, q_mens, debug=False):
-
+def escolher_melhor_palavra_gini_total(mensagens, palavras, q_mens, debug=False):
     # para o gini do conjunto
 
-    # subtotaliza cada resposta
+    # subtotais cada resposta
     unq, unq_inv = np.unique(mensagens[:, 0], return_inverse=True)
     out = np.zeros((len(unq), mensagens.shape[1]), dtype=mensagens.dtype)
-    out[:, 0] = unq    
-    vet_sub_tot_resps = out[:,1]
+    out[:, 0] = unq
+    vet_sub_tot_resps = out[:, 1]
     tot_resps = np.sum(vet_sub_tot_resps)
     sum_probs_resps = np.power(np.divide(vet_sub_tot_resps, tot_resps, dtype=float), 2)
     gini_mensagens = 1 - np.sum(sum_probs_resps)
 
     # para cada palavra
-    
+
     # com resposta
-    # subtotaliza cada resposta
+    # subtotais cada resposta
     unq, unq_inv = np.unique(mensagens[:, 0], return_inverse=True)
     out = np.zeros((len(unq), mensagens.shape[1]), dtype=mensagens.dtype)
     out[:, 0] = unq
@@ -322,8 +335,8 @@ def escolher_melhor_palavra(mensagens, palavras, q_mens, debug=False):
     gini_sem_resposta = 1 - np.sum(np.power(np.divide(out[:, 1:], q_mens, dtype=float), 2), axis=0)
     if debug: print('gini sem resposta: \n', gini_sem_resposta)
     # obter a média ponderada
-    qmp1 = (mensagens[:,1:]==1.0).sum(axis=0, dtype=float)
-    qmp0 = (mensagens[:,1:]==0.0).sum(axis=0, dtype=float)
+    qmp1 = (mensagens[:, 1:] == 1.0).sum(axis=0, dtype=float)
+    qmp0 = (mensagens[:, 1:] == 0.0).sum(axis=0, dtype=float)
     g1 = np.column_stack((gini_com_resposta, gini_sem_resposta))
     w = np.column_stack((qmp1, qmp0))
     gini_palavras = gini_mensagens - np.average(g1, axis=1, weights=w)
@@ -331,25 +344,23 @@ def escolher_melhor_palavra(mensagens, palavras, q_mens, debug=False):
     # para usar o menor gini
     indice_melhor_palavra = np.argmin(gini_palavras)
     # para usar o maior gini
-    #indice_melhor_palavra = np.argmax(gini_palavras)
-    melhor_palavra = palavras[indice_melhor_palavra+1]
+    # indice_melhor_palavra = np.argmax(gini_palavras)
+    melhor_palavra = palavras[indice_melhor_palavra + 1]
     if debug: print('melhor palavra e indice: \n', melhor_palavra, ' - ', indice_melhor_palavra)
     return [melhor_palavra, indice_melhor_palavra]
 
 
-def escolher_melhor_palavra_antigo(mensagens, palavras, q_mens, debug=False):
-
-
+def escolher_melhor_palavra_gini_uma_resposta(mensagens, palavras, q_mens, debug=False):
     # escolher uma resposta para iniciar o processo:
     #  a resposta com maior número de ocorrências.
-    respostas, contagem = np.unique(mensagens[:,0], return_counts=True)
-    respostas_agrupadas = np.column_stack((respostas,contagem))
+    respostas, contagem = np.unique(mensagens[:, 0], return_counts=True)
+    respostas_agrupadas = np.column_stack((respostas, contagem))
     #  selecionar maior resposta agrupada
-    resposta_escolhida = respostas_agrupadas[np.argmax(respostas_agrupadas[:,1:]), 0]
+    resposta_escolhida = respostas_agrupadas[np.argmax(respostas_agrupadas[:, 1:]), 0]
     if debug: print(' Reposta escolhida: ', resposta_escolhida);
 
     # calculando gini de O (O = conjunto de mensagens e suas respostas)
-    resposta_escolhida_mensagens = mensagens[mensagens[:,0]==resposta_escolhida]
+    resposta_escolhida_mensagens = mensagens[mensagens[:, 0] == resposta_escolhida]
     if debug: print('conjunto de mensagens apenas com a resposta escolhida')
     if debug: print(resposta_escolhida_mensagens)
     q_mens_resp_esc = np.shape(resposta_escolhida_mensagens)[0]
@@ -366,11 +377,11 @@ def escolher_melhor_palavra_antigo(mensagens, palavras, q_mens, debug=False):
     if debug: print('GINI de O: ', giniO);
     # calculando o gini de cada palavra
     #  mensagens com cada palavra avaliada e qualquer resposta
-    vet_q_mens_pal_aval = (mensagens[:,1:]==1.0).sum(axis=0, dtype=float)
+    vet_q_mens_pal_aval = (mensagens[:, 1:] == 1.0).sum(axis=0, dtype=float)
     if debug: print('mensagens com cada palavra avaliada e qualquer resposta:')
     if debug: print(vet_q_mens_pal_aval)
     # quantidade de mensagens com a resposta escolhida com cada palavra
-    vet_q_mens_resp_esc_pal_aval = (resposta_escolhida_mensagens[:,1:]==1.0).sum(axis=0, dtype=float)
+    vet_q_mens_resp_esc_pal_aval = (resposta_escolhida_mensagens[:, 1:] == 1.0).sum(axis=0, dtype=float)
     if debug: print('mensagens com cada palavra e a resposta escolhida:')
     if debug: print(vet_q_mens_resp_esc_pal_aval)
     # taxa de mensagens com a palavra sendo analisada e a resposta escolhida
@@ -389,15 +400,16 @@ def escolher_melhor_palavra_antigo(mensagens, palavras, q_mens, debug=False):
     #    RuntimeWarning: invalid value encountered in true_divide
     #    c=a/b
     vet_t_q_mens_resp_esc_pal_aval = \
-    np.divide(vet_q_mens_resp_esc_pal_aval, vet_q_mens_pal_aval, out=np.zeros_like(vet_q_mens_resp_esc_pal_aval), \
-    where=vet_q_mens_pal_aval!=0.0, casting='unsafe')
+        np.divide(vet_q_mens_resp_esc_pal_aval, vet_q_mens_pal_aval, out=np.zeros_like(vet_q_mens_resp_esc_pal_aval), \
+                  where=vet_q_mens_pal_aval != 0.0, casting='unsafe')
     if debug: print('taxa de mensagens com cada palavra e a resposta escolhida:')
     if debug: print(vet_t_q_mens_resp_esc_pal_aval)
     # taxa de mensagens com a palavra sendo analisada e a resposta diferente da escolhida
     vet_q_mens_sem_resp_esc_pal_aval = vet_q_mens_pal_aval - vet_q_mens_resp_esc_pal_aval
     vet_t_q_mens_sem_resp_esc_pal_aval = \
-    np.divide(vet_q_mens_sem_resp_esc_pal_aval, vet_q_mens_pal_aval, out=np.zeros_like(vet_q_mens_sem_resp_esc_pal_aval), \
-    where=vet_q_mens_pal_aval!=0.0, casting='unsafe')
+        np.divide(vet_q_mens_sem_resp_esc_pal_aval, vet_q_mens_pal_aval,
+                  out=np.zeros_like(vet_q_mens_sem_resp_esc_pal_aval), \
+                  where=vet_q_mens_pal_aval != 0.0, casting='unsafe')
     if debug: print('taxa de mensagens com cada palavra e resposta diferente da escolhida:')
     if debug: print(vet_t_q_mens_sem_resp_esc_pal_aval)
     # gini das mensagens com cada palavra e com a resposta escolhida
@@ -408,7 +420,7 @@ def escolher_melhor_palavra_antigo(mensagens, palavras, q_mens, debug=False):
     # a: [-1.  2. -5.  9. -3.]
     # a.clip(min=0)
     # [ 0.  2.  0.  9.  0.]
-    # no entanto:
+    # No entanto:
     # a *= (a>0)
     # [-0.  2. -0.  9. -0.]
     vet_gini_mens_pal_resposta_escolhida = vet_gini_mens_pal_resposta_escolhida.clip(min=0)
@@ -416,34 +428,37 @@ def escolher_melhor_palavra_antigo(mensagens, palavras, q_mens, debug=False):
     if debug: print(vet_gini_mens_pal_resposta_escolhida)
 
     #  mensagens sem cada palavra avaliada e qualquer resposta
-    vet_q_mens_sem_pal_aval = (mensagens[:,1:]==0).sum(axis=0, dtype=float)
+    vet_q_mens_sem_pal_aval = (mensagens[:, 1:] == 0).sum(axis=0, dtype=float)
     # quantidade de mensagens com a resposta escolhida sem cada palavra
-    vet_q_mens_resp_esc_sem_pal_aval = (resposta_escolhida_mensagens[:,1:]==0).sum(axis=0, dtype=float)
+    vet_q_mens_resp_esc_sem_pal_aval = (resposta_escolhida_mensagens[:, 1:] == 0).sum(axis=0, dtype=float)
     if debug: print('mensagens com a resposta escolhida e sem cada palavra:')
     if debug: print(vet_q_mens_resp_esc_sem_pal_aval)
     # taxa de mensagens sem a palavra sendo analisada e com resposta escolhida
     vet_t_q_mens_resp_esc_sem_pal_aval = np.divide(vet_q_mens_resp_esc_sem_pal_aval, vet_q_mens_sem_pal_aval, \
-     out=np.zeros_like(vet_q_mens_resp_esc_sem_pal_aval), where=vet_q_mens_sem_pal_aval!=0, casting='unsafe')
+                                                   out=np.zeros_like(vet_q_mens_resp_esc_sem_pal_aval),
+                                                   where=vet_q_mens_sem_pal_aval != 0, casting='unsafe')
     if debug: print('taxa de mensagens com a resposta escolhida e sem cada palavra:')
     if debug: print(vet_t_q_mens_resp_esc_sem_pal_aval)
     # taxa de mensagens sem cada palavra sendo avaliada e resposta diferente da escolhida
     vet_q_mens_sem_resp_esc_sem_pal_aval = vet_q_mens_sem_pal_aval - vet_q_mens_resp_esc_sem_pal_aval
     vet_t_q_mens_sem_resp_esc_sem_pal_aval = np.divide(vet_q_mens_sem_resp_esc_sem_pal_aval, vet_q_mens_sem_pal_aval, \
-     out=np.zeros_like(vet_q_mens_sem_resp_esc_sem_pal_aval), where=vet_q_mens_sem_pal_aval!=0, casting='unsafe')
+                                                       out=np.zeros_like(vet_q_mens_sem_resp_esc_sem_pal_aval),
+                                                       where=vet_q_mens_sem_pal_aval != 0, casting='unsafe')
     if debug: print('taxa de mensagens sem cada palavra sendo avaliada e resposta diferente da escolhida:')
     if debug: print(vet_t_q_mens_sem_resp_esc_sem_pal_aval)
     # gini das mensagens sem cada palavra sendo avaliada e sem a resposta escolhida
-    vet_gini_q_mens_sem_pal_aval_sem_resp_esc = 1 - (pow(vet_t_q_mens_resp_esc_sem_pal_aval, 2) + pow(vet_t_q_mens_sem_resp_esc_sem_pal_aval, 2));
+    vet_gini_q_mens_sem_pal_aval_sem_resp_esc = 1 - (
+                pow(vet_t_q_mens_resp_esc_sem_pal_aval, 2) + pow(vet_t_q_mens_sem_resp_esc_sem_pal_aval, 2));
     # gini negativo não faz sentido, zera
     vet_gini_q_mens_sem_pal_aval_sem_resp_esc = vet_gini_q_mens_sem_pal_aval_sem_resp_esc.clip(min=0)
     if debug: print('gini das mensagens sem cada palavra sendo avaliada e sem a resposta escolhida:')
     if debug: print(vet_gini_q_mens_sem_pal_aval_sem_resp_esc)
 
     # calculando o gini de cada palavra
-    vet_gini_pal_aval= giniO - ((vet_gini_mens_pal_resposta_escolhida * vet_q_mens_pal_aval / q_mens) + \
-    (vet_gini_q_mens_sem_pal_aval_sem_resp_esc * vet_q_mens_sem_pal_aval / q_mens))
+    vet_gini_pal_aval = giniO - ((vet_gini_mens_pal_resposta_escolhida * vet_q_mens_pal_aval / q_mens) + \
+                                 (vet_gini_q_mens_sem_pal_aval_sem_resp_esc * vet_q_mens_sem_pal_aval / q_mens))
     # gini negativo não faz sentido, zera
-    vet_gini_pal_aval= vet_gini_pal_aval.clip(min=0)
+    vet_gini_pal_aval = vet_gini_pal_aval.clip(min=0)
     if debug: print('Gini de cada palavra avaliada:')
     if debug: print(vGiniPalAval)
 
@@ -451,11 +466,20 @@ def escolher_melhor_palavra_antigo(mensagens, palavras, q_mens, debug=False):
     # TODO ValueError: attempt to get argmax of an empty sequence
     try:
         ind_pal_esc = np.argmax(vet_gini_pal_aval)
-        pal_esc = palavras[ind_pal_esc +1]
+        pal_esc = palavras[ind_pal_esc + 1]
     except ValueError:
         # provisoriamente vamos pegar a primeira palavra disponivel
         pal_esc = [1]
         ind_pal_esc = 0
     return [pal_esc, ind_pal_esc]
+
+
+def escolher_melhor_palavra_divisao_maxima(mensagens, palavras, debug=False):
+
+    # subtotais cada resposta
+    indice_melhor_palavra = np.argmax(np.sum(mensagens[:, 1:], axis=0))
+    melhor_palavra = palavras[indice_melhor_palavra + 1]
+    if debug: print('melhor palavra e indice: \n', melhor_palavra, ' - ', indice_melhor_palavra)
+    return [melhor_palavra, indice_melhor_palavra]
 
 

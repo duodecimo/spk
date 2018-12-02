@@ -39,6 +39,8 @@ np.add.at(out[:, 1:], unq_inv, a[:, 1:])
 print('out')
 print(out)
 
+'''
+
 print('np.divide(out[:, 1:], linhas_a, dtype=float)')
 print(np.divide(out[:, 1:], linhas_a, dtype=float))
 
@@ -81,7 +83,6 @@ print(h)
 i = np.average(g, axis=1, weights=h)
 print(i)
 print(0.95*0.3 + 0.87*0.7)
-'''
 
 c= np.unique(a[:, 0]) 
 

@@ -3,7 +3,7 @@ arvore = {};
 
 
 
-n=0; // no raiz
+n=0; // No raiz
 
 class No():
     def __init__(self, indice, palavras, pai, mensagens, nome):
