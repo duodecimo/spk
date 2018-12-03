@@ -55,9 +55,17 @@ def main():
     # e embaralhado.
     # Deve ser um número inteiro,
     # de 1 a 5.
-    tx_infla_treino = 3
+    tx_infla_treino = 2
     assert type(tx_infla_treino) is int, "tx_infla_treino não é um inteiro: %r" % tx_infla_treino
     assert 0 < tx_infla_treino < 6, "tx_infla_treino não está ente 1 e 5: %r" % tx_infla_treino
+
+    # a semente do gerador randômico influencia
+    # no resultado do particionamento:
+    # se fôr zero, cada repetição do experimento
+    # gera os mesmos conjuntos de dados (treino e teste).
+    # Isso é útil para comparar métodos diferentes.
+    # Para aferir um método, é bom usar semente maior que zero.
+    semente = 8324
 
     # se verdadeiro a expansão da árvore
     # é paralelizada
@@ -151,7 +159,7 @@ def main():
         # vamos utilizar seed=0 para
         # garantir a repetitividade
         # dos dados para testes recorrentes.
-        np.random.seed(0)
+        np.random.seed(semente)
         np.random.shuffle(mensagens)
         l = mensagens.shape[0]
         treinos, testes = mensagens[: int(l * tx_part_treino)], mensagens[int(l * tx_part_treino):]
