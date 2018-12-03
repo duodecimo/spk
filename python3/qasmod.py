@@ -350,12 +350,12 @@ def escolher_melhor_palavra_gini_total(mensagens, palavras, debug=False):
     qmp0 = (mensagens[:, 1:] == 0.0).sum(axis=0, dtype=float)
     g1 = np.column_stack((gini_com_resposta, gini_sem_resposta))
     w = np.column_stack((qmp1, qmp0))
-    gini_palavras = gini_mensagens - np.average(g1, axis=1, weights=w)
+    gini_palavras = gini_mensagens - ( 1 - np.average(g1, axis=1, weights=w))
     if debug: print('gini palavras: \n', gini_palavras)
     # para usar o menor gini
-    indice_melhor_palavra = np.argmin(gini_palavras)
+    # indice_melhor_palavra = np.argmin(gini_palavras)
     # para usar o maior gini
-    # indice_melhor_palavra = np.argmax(gini_palavras)
+    indice_melhor_palavra = np.argmax(gini_palavras)
     melhor_palavra = palavras[indice_melhor_palavra + 1]
     if debug: print('melhor palavra e indice: \n', melhor_palavra, ' - ', indice_melhor_palavra)
     return [melhor_palavra, indice_melhor_palavra]

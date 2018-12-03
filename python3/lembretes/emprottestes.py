@@ -153,8 +153,3 @@ indice_melhor_palavra2 = np.argmax(gini_palavras)
 print('indice_melhor_palavra2')
 print(indice_melhor_palavra2)
 
-melhor_palavra1 = palavras[indice_melhor_palavra1 + 1]
-melhor_palavra2 = palavras[indice_melhor_palavra2 + 1]
-print('melhor palavra (minimo) e indice: \n', melhor_palavra1, ' - ', indice_melhor_palavra1)
-print('melhor palavra (maximo) e indice: \n', melhor_palavra2, ' - ', indice_melhor_palavra2)
-
