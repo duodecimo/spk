@@ -353,7 +353,7 @@ def escolher_melhor_palavra_gini_total(mensagens, palavras, debug=False):
     gini_palavras = gini_mensagens - ( 1 - np.average(g1, axis=1, weights=w))
     if debug: print('gini palavras: \n', gini_palavras)
     # para usar o menor gini
-    # indice_melhor_palavra = np.argmin(gini_palavras)
+    #indice_melhor_palavra = np.argmin(gini_palavras)
     # para usar o maior gini
     indice_melhor_palavra = np.argmax(gini_palavras)
     melhor_palavra = palavras[indice_melhor_palavra + 1]

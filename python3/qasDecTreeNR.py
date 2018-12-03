@@ -35,11 +35,29 @@ def main():
 
     # se verdadeiro o programa embaralha
     # e divide o arquivo de dados em
-    # treino (90%) e teste(10%),
+    # treino(tx_part_treino) e
+    # teste(1 - tx_part_treino),
     # caso contrário usa todos os dados
     # tanto para treino como para teste.
     # é de se esperar overfitting.
     particionar = True
+
+    # informa a taxa de particionamento do
+    # conjunto de dados em treino e teste,
+    # por exemplo, .9 indica 90% para treino
+    # e 10% para teste.
+    tx_part_treino = .7
+
+    # se vai haver particionamento,
+    # após particionar, pode-se inflar
+    # os dados de treino somando o conjunto
+    # a sí mesmo tx_infla_treino vezes
+    # e embaralhado.
+    # Deve ser um número inteiro,
+    # de 1 a 5.
+    tx_infla_treino = 3
+    assert type(tx_infla_treino) is int, "tx_infla_treino não é um inteiro: %r" % tx_infla_treino
+    assert 0 < tx_infla_treino < 6, "tx_infla_treino não está ente 1 e 5: %r" % tx_infla_treino
 
     # se verdadeiro a expansão da árvore
     # é paralelizada
@@ -55,7 +73,7 @@ def main():
     # 2: escolher_melhor_palavra_gini_total(mensagens, palavras, q_mens, debug=False)
     # 3: escolher_melhor_palavra_divisao_maxima(mensagens, palavras)
     metodos_mp = ['gini de uma resposta', 'gini total', 'máxima divisão']
-    metodo_mp_escolhido = 2
+    metodo_mp_escolhido = 1
 
     # inicialização dos processos do programa
 
@@ -101,10 +119,10 @@ def main():
     testes = []
 
     if executar_teste:
-        # será gerado um conjunto de dados alatório
+        # será gerado um conjunto de dados aleatório
         # que serve apenas para testar o código.
         intervalo_mostra = 0.00005
-        # gerar treino randomico, para testes
+        # gerar treino randômico, para testes
         # x, y = 40,20
         mensagens = np.random.randint(2, size=(tam_teste[0], tam_teste[1]))
         # primeira linha, palavras
@@ -127,8 +145,8 @@ def main():
 
     if particionar:
         # para particionar matriz
-        # treinos = 90%
-        # testes = 10%
+        # treinos = tx_part_treino
+        # testes = 1 - tx_part_treino
 
         # vamos utilizar seed=0 para
         # garantir a repetitividade
@@ -136,12 +154,20 @@ def main():
         np.random.seed(0)
         np.random.shuffle(mensagens)
         l = mensagens.shape[0]
-        treinos, testes = mensagens[: int(l * .9)], mensagens[int(l * .9):]
+        treinos, testes = mensagens[: int(l * tx_part_treino)], mensagens[int(l * tx_part_treino):]
+        # inflar treino
+        if tx_infla_treino>1:
+            t = treinos
+            for i in range(tx_infla_treino):
+                treinos = np.append(treinos, t, axis=0)
+            np.random.shuffle(mensagens)
         print('>' * 79)
-        print('Mensagens (', mensagens.shape, ') particionadas.')
+        if tx_infla_treino > 1:
+            print('Mensagens (', mensagens.shape, ') particionadas e infladas ', tx_infla_treino, ' vezes.')
+        else:
+            print('Mensagens (', mensagens.shape, ') particionadas.')
         print(' treinos(', treinos.shape, ') e testes(', testes.shape, ')')
         print('>' * 79)
-        # neste caso é recomendável salvar o treino para posterior execução
     else:
         # se não, usa os mesmos dados
         # para treino e teste
@@ -315,6 +341,8 @@ def main():
     print('#' * 79)
     print('método utilizado para escolher a melhor palavra: ', metodos_mp[metodo_mp_escolhido-1])
     print('utilizando os dados de treinamento (espera-se overfitting)')
+    if particionar and tx_infla_treino>1:
+        print('observação: os dados de treino, após o particionamento, foram inflados ', tx_infla_treino, ' vezes.')
     print('testadas: ', testadas)
     print(' acertos: ', acertos)
     print(' erros: ', erros)
@@ -330,7 +358,7 @@ def main():
         fim = timer()
         print('#' * 79)
         print('método utilizado para escolher a melhor palavra: ', metodos_mp[metodo_mp_escolhido-1])
-        print('utilizando os dados de teste, 10 % dos dados originais separados aleatoriamente')
+        print('utilizando os dados de teste', tx_part_treino*100, '% dos dados originais separados aleatoriamente')
         print('testadas: ', testadas)
         print(' acertos: ', acertos)
         print(' erros: ', erros)
