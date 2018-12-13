@@ -55,7 +55,7 @@ def main():
     # e embaralhado.
     # Deve ser um número inteiro,
     # de 1 a 5.
-    tx_infla_treino = 2
+    tx_infla_treino = 1
     assert type(tx_infla_treino) is int, "tx_infla_treino não é um inteiro: %r" % tx_infla_treino
     assert 0 < tx_infla_treino < 6, "tx_infla_treino não está ente 1 e 5: %r" % tx_infla_treino
 

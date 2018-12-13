@@ -7,6 +7,7 @@ from datetime import timedelta
 from timeit import default_timer as timer
 
 import numpy as np
+import csv
 
 
 # classes
@@ -111,6 +112,22 @@ def salvar_arvore(arvore, caminho):
     arq = open(nome_arq2, 'wb')
     pickle.dump(arvore, arq, pickle.HIGHEST_PROTOCOL)
     arq.close()
+
+    nome_arq3 = caminho + 'arvore.csv'
+    with open(nome_arq3, 'w', newline='', encoding='utf-8') as csvfile:
+        writer = csv.writer(csvfile, delimiter=',')
+        writer.writerow(['id', 'palavra', 'resposta'])
+        for chave, no in arvore.items():
+            pl = no.retpalavra
+            if pl is None:
+                pl = 'null'
+            rp = no.retrespostas
+            if rp is None or len(rp) == 0:
+                rp = 'null'
+            else:
+                rp = rp[0]
+            writer.writerow([chave, pl, rp])
+
     return nome_arq
 
 
